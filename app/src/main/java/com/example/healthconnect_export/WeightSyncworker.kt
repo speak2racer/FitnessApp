@@ -1,175 +1,75 @@
 package com.example.healthconnect_export
 
 import android.content.Context
-
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-import java.net.HttpURLConnection
-import java.net.URL
-
+import io.github.jan.supabase.postgrest.from
+import kotlinx.serialization.Serializable
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+
+@Serializable
+data class WeightEntry(
+    val datum: String,
+    val gewicht: Double
+)
 
 class WeightSyncWorker(
     context: Context,
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
-    private val supabaseUrl =
-        "https://zhttlbhpyxcqnujirbxk.supabase.co"
-
-    private val supabaseAnonKey =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHRsYmhweXhjcW51amlyYnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2ODgxODcsImV4cCI6MjA5NTI2NDE4N30.IHSHYwdUJ4ZlqX9q9Qssuw3QUtotLM_yLFz6gzj89UI"
-
     override suspend fun doWork(): Result {
         return try {
-            val client =
-                HealthConnectClient.getOrCreate(applicationContext)
+            val client = HealthConnectClient.getOrCreate(applicationContext)
+            val zoneId = ZoneId.systemDefault()
 
-            val response =
-                client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = WeightRecord::class,
-                        timeRangeFilter =
-                            TimeRangeFilter.between(
-                                Instant.parse("2020-01-01T00:00:00Z"),
-                                Instant.now()
-                            )
-                    )
+            val start = LocalDate.now().minusDays(14).atStartOfDay(zoneId).toInstant()
+            val end = Instant.now()
+
+            val records = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = WeightRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, end)
                 )
-
-            val records =
-                response.records
-                    .groupBy {
-                        it.time
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate()
-                    }
-                    .map { (_, dayRecords) ->
-                        dayRecords.maxBy { it.time }
-                    }
-                    .sortedBy { it.time }
-
-            println("Gefundene Gewichtseinträge: ${records.size}")
+            ).records
+                .groupBy { it.time.atZone(zoneId).toLocalDate() }
+                .map { (_, dayRecords) -> dayRecords.maxBy { it.time } }
+                .sortedBy { it.time }
 
             if (records.isEmpty()) {
-                println("Keine Gewichtsdaten gefunden.")
+                SyncPreferences.setLastSync(applicationContext, "weight", "Keine Daten")
                 return Result.success()
             }
 
-            val json =
-                records.joinToString(
-                    prefix = "[",
-                    postfix = "]"
-                ) { record ->
+            val entries = records.map { record ->
+                WeightEntry(
+                    datum = record.time.atZone(zoneId).toLocalDate()
+                        .format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    gewicht = record.weight.inKilograms
+                )
+            }
 
-                    val datum =
-                        record.time
-                            .atZone(ZoneId.systemDefault())
-                            .toLocalDate()
-                            .toString()
+            SupabaseConfig.client
+                .from("weights")
+                .upsert(entries) { onConflict = "datum" }
 
-                    val gewicht =
-                        record.weight.inKilograms
-
-                    println("Gewicht gefunden: $gewicht kg am $datum")
-
-                    """
-                    {
-                        "datum": "$datum",
-                        "gewicht": $gewicht
-                    }
-                    """.trimIndent()
-                }
-
-            println("JSON für Supabase:")
-            println(json)
-
-            uploadToSupabase(json)
-
-            println("Gewicht erfolgreich nach Supabase hochgeladen.")
+            val timestamp = java.time.LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
+            SyncPreferences.setLastSync(applicationContext, "weight", timestamp)
+            SyncPreferences.setLastError(applicationContext, "weight", "")
 
             Result.success()
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            println("WeightSyncWorker Fehler: ${e.message}")
+            SyncPreferences.setLastError(applicationContext, "weight", e.message ?: "Unbekannter Fehler")
             Result.failure()
-        }
-    }
-
-    private suspend fun uploadToSupabase(
-        json: String
-    ) {
-        withContext(Dispatchers.IO) {
-            val url = URL(
-                "${supabaseUrl}/rest/v1/weights?on_conflict=datum"
-            )
-
-            val connection =
-                url.openConnection() as HttpURLConnection
-
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-
-            connection.setRequestProperty(
-                "Content-Type",
-                "application/json"
-            )
-
-            connection.setRequestProperty(
-                "apikey",
-                supabaseAnonKey
-            )
-
-            connection.setRequestProperty(
-                "Authorization",
-                "Bearer $supabaseAnonKey"
-            )
-
-            connection.setRequestProperty(
-                "Prefer",
-                "resolution=merge-duplicates,return=representation"
-            )
-
-            connection.outputStream.use { stream ->
-                stream.write(json.toByteArray())
-            }
-
-            val code =
-                connection.responseCode
-
-            println("Supabase HTTP Code: $code")
-
-            val responseText =
-                if (code in 200..299) {
-                    connection.inputStream
-                        ?.bufferedReader()
-                        ?.readText()
-                } else {
-                    connection.errorStream
-                        ?.bufferedReader()
-                        ?.readText()
-                }
-
-            println("Supabase Antwort: $responseText")
-
-            if (code !in 200..299) {
-                throw Exception(
-                    "Supabase Fehler $code: $responseText"
-                )
-            }
-
-            connection.disconnect()
         }
     }
 }
