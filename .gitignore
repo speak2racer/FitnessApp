@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+.env
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+einstellungen.json
+*.csv

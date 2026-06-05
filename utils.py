@@ -12,8 +12,9 @@ try:
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_ANON_KEY = st.secrets["SUPABASE_ANON_KEY"]
 except Exception:
-    SUPABASE_URL = "https://zhttlbhpyxcqnujirbxk.supabase.co"
-    SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHRsYmhweXhjcW51amlyYnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2ODgxODcsImV4cCI6MjA5NTI2NDE4N30.IHSHYwdUJ4ZlqX9q9Qssuw3QUtotLM_yLFz6gzj89UI"
+    import os
+    SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
 
 STANDARD_FAKTOR = {
     "Diät": 12.0,
@@ -217,6 +218,7 @@ def supabase_headers():
     }
 
 
+@st.cache_data(ttl=300)
 def lade_tagesdaten(ab_datum=None):
     try:
         url = f"{SUPABASE_URL}/rest/v1/weights"
@@ -281,6 +283,7 @@ def lade_tagesdaten(ab_datum=None):
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=300)
 def lade_caliper_daten():
     try:
         url = f"{SUPABASE_URL}/rest/v1/caliper"
@@ -434,6 +437,7 @@ def speichere_caliper_supabase(
 
     response.raise_for_status()
 
+@st.cache_data(ttl=300)
 def lade_nutrition_logs(ab_datum=None):
     try:
         url = f"{SUPABASE_URL}/rest/v1/nutrition_daily_logs"
@@ -478,6 +482,7 @@ def lade_nutrition_logs(ab_datum=None):
     return pd.DataFrame()
 
 
+@st.cache_data(ttl=300)
 def lade_activity_logs(ab_datum=None):
     try:
         url = f"{SUPABASE_URL}/rest/v1/activity_daily_logs"
