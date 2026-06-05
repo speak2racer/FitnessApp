@@ -1,18 +1,8 @@
-/* HEADER ausblenden, aber Sidebar-Toggle immer sichtbar */
+/* HEADER: in App-Hintergrund einfügen statt ausblenden */
 
 header[data-testid="stHeader"] {
-    background: transparent !important;
+    background: #1e293b !important;
     height: 2.5rem !important;
-}
-
-header[data-testid="stHeader"] > * {
-    visibility: hidden;
-}
-
-/* Sidebar-Toggle beim Einklappen immer anzeigen */
-[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
 }
 
 /* APP HINTERGRUND */
