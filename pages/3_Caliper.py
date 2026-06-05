@@ -37,21 +37,18 @@ for key, value in {
 with st.container(border=True):
     st.subheader("📝 Eingabe")
 
-    c1, c2, c3, c4, c5 = st.columns(5)
+    st.metric("Gewicht", f"{gewicht_kg:.1f} kg")
 
-    with c1:
-        st.metric("Gewicht", f"{gewicht_kg:.1f} kg")
-
-    with c2:
+    r1c1, r1c2 = st.columns(2)
+    with r1c1:
         alter = st.number_input("Alter", min_value=10, max_value=100, key="alter")
-
-    with c3:
+    with r1c2:
         brust = st.number_input("Brustfalte mm", min_value=1.0, max_value=80.0, step=0.5, key="brust")
 
-    with c4:
+    r2c1, r2c2 = st.columns(2)
+    with r2c1:
         bauch = st.number_input("Bauchfalte mm", min_value=1.0, max_value=80.0, step=0.5, key="bauch")
-
-    with c5:
+    with r2c2:
         oberschenkel = st.number_input("Oberschenkel mm", min_value=1.0, max_value=80.0, step=0.5, key="oberschenkel")
 
 kfa_daten = berechne_kfa(

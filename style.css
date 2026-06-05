@@ -346,3 +346,77 @@ hr {
 
     margin-bottom: 2rem;
 }
+
+/* MOBILE OPTIMIERUNG */
+
+@media (max-width: 768px) {
+
+    .block-container {
+        padding-top: 1rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-bottom: 2rem;
+    }
+
+    h1 {
+        font-size: 28px !important;
+        margin-bottom: 8px !important;
+    }
+
+    h2, h3 {
+        font-size: 18px !important;
+    }
+
+    /* Spalten untereinander stapeln */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: wrap !important;
+    }
+
+    [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        min-width: calc(50% - 0.5rem) !important;
+        flex: 1 1 calc(50% - 0.5rem) !important;
+    }
+
+    /* Metriken kompakter */
+    .stMetric {
+        padding: 14px !important;
+        min-height: 90px !important;
+        border-radius: 14px !important;
+    }
+
+    .stMetric [data-testid="stMetricValue"] {
+        font-size: 22px !important;
+    }
+
+    .stMetric label {
+        font-size: 12px !important;
+    }
+
+    /* Buttons größer für Touch */
+    .stButton button {
+        padding: 18px 24px !important;
+        font-size: 16px !important;
+        border-radius: 14px !important;
+    }
+
+    /* Inputs größer */
+    div[data-baseweb="input"],
+    div[data-baseweb="select"] > div {
+        min-height: 56px !important;
+    }
+
+    .stNumberInput input {
+        font-size: 20px !important;
+    }
+
+    /* Sidebar schmaler */
+    section[data-testid="stSidebar"] {
+        width: 220px !important;
+    }
+
+    /* Karten weniger Padding */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        padding: 14px !important;
+        border-radius: 16px !important;
+    }
+}
