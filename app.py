@@ -221,18 +221,27 @@ with tab_woche:
             k_weekly = k_weekly[k_weekly["Woche"].isin(kcal_counts[kcal_counts >= 5].index)]
             tdee_data = g_weekly.merge(k_weekly, on="Woche").sort_values("Woche")
 
-            if len(tdee_data) >= 2:
-                akt = tdee_data.iloc[-1]
-                vor = tdee_data.iloc[-2]
+            # Nur direkt aufeinanderfolgende Wochen verwenden
+            tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
+            tdee_data = tdee_data.sort_values("Woche").reset_index(drop=True)
+
+            paar = None
+            for i in range(len(tdee_data) - 1, 0, -1):
+                if (tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]) == 1:
+                    paar = (tdee_data.iloc[i-1], tdee_data.iloc[i])
+                    break
+
+            if paar:
+                vor, akt = paar
                 delta_kg = akt["Gewicht_kg"] - vor["Gewicht_kg"]
                 echter_tdee = akt["Kalorien_gegessen"] - (delta_kg * 7700 / 7)
 
                 t1, t2, t3, t4 = st.columns(4)
-                t1.metric("Gewicht diese Woche", f"{akt['Gewicht_kg']:.2f} kg")
-                t2.metric("Gewicht Vorwoche", f"{vor['Gewicht_kg']:.2f} kg")
+                t1.metric(f"Gewicht {akt['Woche']}", f"{akt['Gewicht_kg']:.2f} kg")
+                t2.metric(f"Gewicht {vor['Woche']}", f"{vor['Gewicht_kg']:.2f} kg")
                 t3.metric("Trend", f"{delta_kg:+.2f} kg/Woche")
                 t4.metric("Geschätzter TDEE", f"{echter_tdee:.0f} kcal")
-                st.caption("Berechnet aus Gewichtsänderung und tatsächlicher Kalorienaufnahme.")
+                st.caption("Berechnet aus zwei aufeinanderfolgenden Wochen mit je ≥5 Kalorieneintragen.")
             else:
                 st.info("Mindestens zwei Wochen Daten nötig.")
         else:
