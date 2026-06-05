@@ -107,25 +107,18 @@ def chart_karte(df, x, y, titel, farbe, einheit):
     return fig
 
 
-with st.container(border=True):
-    st.subheader("📊 Wochenmittel Gewicht")
+wochen = daten.copy()
+wochen["Woche"] = wochen["Datum"].dt.to_period("W").astype(str)
+wochenmittel = (
+    wochen.groupby("Woche").agg({"Gewicht_kg": "mean"}).reset_index().round(2)
+)
 
-    wochen = daten.copy()
-    wochen["Woche"] = wochen["Datum"].dt.to_period("W").astype(str)
+tab_uebersicht, tab_charts = st.tabs(["📋 Übersicht", "📈 Charts"])
 
-    wochenmittel = (
-        wochen.groupby("Woche")
-        .agg({"Gewicht_kg": "mean"})
-        .reset_index()
-        .round(2)
-    )
-
-    st.dataframe(
-        wochenmittel,
-        use_container_width=True,
-        hide_index=True
-    )
-
+with tab_uebersicht:
+    with st.container(border=True):
+        st.subheader("📊 Wochenmittel Gewicht")
+        st.dataframe(wochenmittel, use_container_width=True, hide_index=True)
 
 if len(wochenmittel) >= 2:
     aktuelles_gewicht = wochenmittel["Gewicht_kg"].iloc[-1]
@@ -139,21 +132,21 @@ if len(wochenmittel) >= 2:
         faktor
     )
 
-    with st.container(border=True):
-        st.subheader("⚖️ Wochentrend")
-
-        t1, t2, t3, t4 = st.columns(4)
-
-        t1.metric("Diese Woche Ø", f"{aktuelles_gewicht:.2f} kg")
-        t2.metric("Vorwoche Ø", f"{vorheriges_gewicht:.2f} kg")
-        t3.metric("Veränderung", f"{veraenderung_kg:+.2f} kg")
-        t4.metric("Veränderung lbs", f"{veraenderung_lbs:+.2f} lbs")
+    with tab_uebersicht:
+        with st.container(border=True):
+            st.subheader("⚖️ Wochentrend")
+            t1, t2, t3, t4 = st.columns(4)
+            t1.metric("Diese Woche Ø", f"{aktuelles_gewicht:.2f} kg")
+            t2.metric("Vorwoche Ø", f"{vorheriges_gewicht:.2f} kg")
+            t3.metric("Veränderung", f"{veraenderung_kg:+.2f} kg")
+            t4.metric("Veränderung lbs", f"{veraenderung_lbs:+.2f} lbs")
 else:
-    st.info("Für den Wochentrend brauchst du mindestens zwei Wochen Daten.")
+    with tab_uebersicht:
+        st.info("Für den Wochentrend brauchst du mindestens zwei Wochen Daten.")
 
-
-with st.container(border=True):
-    st.subheader("🔥 Ernährung & Aktivität pro Woche")
+with tab_uebersicht:
+    with st.container(border=True):
+        st.subheader("🔥 Ernährung & Aktivität pro Woche")
 
     if (
         not nutrition_logs.empty
@@ -285,13 +278,11 @@ with st.container(border=True):
         )
 
     else:
-        st.info(
-            "Noch nicht genug Nutrition-, Activity- oder Ziel-Daten vorhanden."
-        )
+        st.info("Noch nicht genug Nutrition-, Activity- oder Ziel-Daten vorhanden.")
 
-
-with st.container(border=True):
-    st.subheader("📉 Körperanalyse Dashboard")
+with tab_charts:
+    with st.container(border=True):
+        st.subheader("📉 Körperanalyse Charts")
 
     daten_plot = format_datum(daten)
 
