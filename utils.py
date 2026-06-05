@@ -59,6 +59,24 @@ def lade_einstellungen():
             daten = json.load(f)
             standard.update(daten)
 
+    # Faktor und Carb-Anteil aus Supabase nutrition_targets überschreiben
+    try:
+        response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/nutrition_targets",
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
+            },
+            params={"select": "faktor,carb_anteil", "order": "datum.desc", "limit": "1"}
+        )
+        response.raise_for_status()
+        daten = response.json()
+        if daten:
+            standard["faktor"] = float(daten[0]["faktor"])
+            standard["carb_anteil"] = int(daten[0]["carb_anteil"])
+    except Exception:
+        pass
+
     return standard
 
 @st.cache_data(ttl=300)
