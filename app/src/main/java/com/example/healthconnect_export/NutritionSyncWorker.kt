@@ -1,24 +1,17 @@
 package com.example.healthconnect_export
 
 import android.content.Context
-
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
-
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
-
 import kotlinx.serialization.Serializable
-
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Serializable
 data class NutritionDailyLog(
@@ -35,112 +28,58 @@ class NutritionSyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
-    private val healthConnectClient =
-        HealthConnectClient.getOrCreate(context)
-
-    private val supabase = createSupabaseClient(
-        supabaseUrl = "https://zhttlbhpyxcqnujirbxk.supabase.co",
-        supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpodHRsYmhweXhjcW51amlyYnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2ODgxODcsImV4cCI6MjA5NTI2NDE4N30.IHSHYwdUJ4ZlqX9q9Qssuw3QUtotLM_yLFz6gzj89UI"
-    ) {
-        install(Postgrest)
-    }
-
     override suspend fun doWork(): Result {
         return try {
+            val client = HealthConnectClient.getOrCreate(applicationContext)
             val zoneId = ZoneId.systemDefault()
 
             val startDate = LocalDate.now().minusDays(30)
             val endDate = LocalDate.now()
+            val start = startDate.atStartOfDay(zoneId).toInstant()
+            val end = endDate.plusDays(1).atStartOfDay(zoneId).toInstant()
 
-            val startInstant = startDate
-                .atStartOfDay(zoneId)
-                .toInstant()
-
-            val endInstant = endDate
-                .plusDays(1)
-                .atStartOfDay(zoneId)
-                .toInstant()
-
-            val response = healthConnectClient.readRecords(
+            val records = client.readRecords(
                 ReadRecordsRequest(
                     recordType = NutritionRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(
-                        startInstant,
-                        endInstant
-                    )
+                    timeRangeFilter = TimeRangeFilter.between(start, end)
                 )
-            )
+            ).records
 
-            println("Gefundene Nutrition-Einträge: ${response.records.size}")
-
-            val dailyLogs =
-                response.records
-                    .groupBy { record ->
-                        record.startTime
-                            .atZone(zoneId)
-                            .toLocalDate()
+            val dailyLogs = records
+                .groupBy { it.startTime.atZone(zoneId).toLocalDate() }
+                .map { (day, recs) ->
+                    var calories = 0.0; var protein = 0.0
+                    var carbs = 0.0; var fat = 0.0
+                    recs.forEach { r ->
+                        calories += r.energy?.inKilocalories ?: 0.0
+                        protein += r.protein?.inGrams ?: 0.0
+                        carbs += r.totalCarbohydrate?.inGrams ?: 0.0
+                        fat += r.totalFat?.inGrams ?: 0.0
                     }
-                    .map { (day, records) ->
-
-                        var calories = 0.0
-                        var protein = 0.0
-                        var carbs = 0.0
-                        var fat = 0.0
-
-                        records.forEach { record ->
-                            record.energy?.inKilocalories?.let {
-                                calories += it
-                            }
-
-                            record.protein?.inGrams?.let {
-                                protein += it
-                            }
-
-                            record.totalCarbohydrate?.inGrams?.let {
-                                carbs += it
-                            }
-
-                            record.totalFat?.inGrams?.let {
-                                fat += it
-                            }
-                        }
-
-                        NutritionDailyLog(
-                            log_date = day.toString(),
-                            calories = calories,
-                            protein = protein,
-                            carbs = carbs,
-                            fat = fat
-                        )
-                    }
-                    .sortedBy { it.log_date }
-
-            println("Nutrition Tageslogs: $dailyLogs")
-
-            if (dailyLogs.isEmpty()) {
-                println("Keine Nutrition-Daten gefunden.")
-                return Result.success()
-            }
-
-            dailyLogs.forEach { log ->
-
-                println("Speichere Nutrition: $log")
-
-                supabase
-                    .from("nutrition_daily_logs")
-                    .upsert(
-                        log,
-                        onConflict = "log_date"
+                    NutritionDailyLog(
+                        log_date = day.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                        calories = calories, protein = protein,
+                        carbs = carbs, fat = fat
                     )
+                }
+                .filter { it.calories > 0 }
+                .sortedBy { it.log_date }
+
+            if (dailyLogs.isNotEmpty()) {
+                SupabaseConfig.client
+                    .from("nutrition_daily_logs")
+                    .upsert(dailyLogs) { onConflict = "log_date" }
             }
 
-            println("Nutrition erfolgreich nach Supabase synchronisiert.")
+            val timestamp = java.time.LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"))
+            SyncPreferences.setLastSync(applicationContext, "nutrition", timestamp)
+            SyncPreferences.setLastError(applicationContext, "nutrition", "")
 
             Result.success()
 
         } catch (e: Exception) {
-            e.printStackTrace()
-            println("NutritionSyncWorker Fehler: ${e.message}")
+            SyncPreferences.setLastError(applicationContext, "nutrition", e.message ?: "Unbekannter Fehler")
             Result.failure()
         }
     }
