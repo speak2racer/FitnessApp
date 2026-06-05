@@ -35,10 +35,15 @@ def lade_css():
 
 
 def zeige_refresh_button():
+    import datetime
     with st.sidebar:
         st.divider()
+        if "letzter_refresh" not in st.session_state:
+            st.session_state.letzter_refresh = datetime.datetime.now()
+        st.caption(f"🕐 Stand: {st.session_state.letzter_refresh.strftime('%H:%M:%S')}")
         if st.button("🔄 Daten aktualisieren", use_container_width=True):
             st.cache_data.clear()
+            st.session_state.letzter_refresh = datetime.datetime.now()
             st.rerun()
 
 
@@ -72,8 +77,36 @@ def lade_einstellungen():
         response.raise_for_status()
         daten = response.json()
         if daten:
-            standard["faktor"] = float(daten[0]["faktor"])
+            faktor = float(daten[0]["faktor"])
+            standard["faktor"] = faktor
             standard["carb_anteil"] = int(daten[0]["carb_anteil"])
+            # Ziel aus Faktor ableiten
+            if faktor <= 13.5:
+                standard["ziel"] = "Diät"
+            elif faktor >= 15.5:
+                standard["ziel"] = "Aufbau"
+            else:
+                standard["ziel"] = "Erhalt"
+    except Exception:
+        pass
+
+    # Alter und Caliper-Falten aus letztem Supabase-Caliper-Eintrag laden
+    try:
+        response = requests.get(
+            f"{SUPABASE_URL}/rest/v1/caliper",
+            headers={
+                "apikey": SUPABASE_ANON_KEY,
+                "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
+            },
+            params={"select": "alter,brust_mm,bauch_mm,oberschenkel_mm", "order": "datum.desc", "limit": "1"}
+        )
+        response.raise_for_status()
+        daten = response.json()
+        if daten:
+            standard["alter"] = int(daten[0]["alter"])
+            standard["brust"] = float(daten[0]["brust_mm"])
+            standard["bauch"] = float(daten[0]["bauch_mm"])
+            standard["oberschenkel"] = float(daten[0]["oberschenkel_mm"])
     except Exception:
         pass
 
