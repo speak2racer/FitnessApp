@@ -343,6 +343,22 @@ def lade_caliper_daten():
     return pd.DataFrame()
 
 
+def aktualisiere_supabase_gewicht(datum, neues_gewicht):
+    url = f"{SUPABASE_URL}/rest/v1/weights"
+
+    headers = supabase_headers()
+    headers["Prefer"] = "return=minimal"
+
+    response = requests.patch(
+        url,
+        headers=headers,
+        params={"datum": f"eq.{datum}"},
+        json={"gewicht": round(float(neues_gewicht), 2)}
+    )
+
+    response.raise_for_status()
+
+
 def loesche_supabase_gewicht(datum):
     url = f"{SUPABASE_URL}/rest/v1/weights"
 
