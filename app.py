@@ -182,7 +182,10 @@ with tab_woche:
 
         if not nutrition_logs.empty and not activity_logs.empty:
             n = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute].copy()
-            a = activity_logs[activity_logs["Datum"].dt.normalize() < heute].copy()
+            a = activity_logs[
+                (activity_logs["Datum"].dt.normalize() < heute) &
+                (activity_logs["Gesamtverbrauch"] > 0)
+            ].copy()
             n["Woche"] = n["Datum"].dt.to_period("W").astype(str)
             a["Woche"] = a["Datum"].dt.to_period("W").astype(str)
 
