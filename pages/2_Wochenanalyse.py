@@ -153,8 +153,9 @@ with tab_uebersicht:
         and not activity_logs.empty
         and not nutrition_targets.empty
     ):
-        nutrition = nutrition_logs.copy()
-        activity = activity_logs.copy()
+        heute_norm = pd.Timestamp.today().normalize()
+        nutrition = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute_norm].copy()
+        activity = activity_logs[activity_logs["Datum"].dt.normalize() < heute_norm].copy()
         targets = nutrition_targets.copy()
 
         nutrition["Woche"] = nutrition["Datum"].dt.to_period("W").astype(str)

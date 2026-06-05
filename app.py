@@ -181,8 +181,8 @@ with tab_woche:
         st.subheader("📊 Wochenübersicht")
 
         if not nutrition_logs.empty and not activity_logs.empty:
-            n = nutrition_logs.copy()
-            a = activity_logs.copy()
+            n = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute].copy()
+            a = activity_logs[activity_logs["Datum"].dt.normalize() < heute].copy()
             n["Woche"] = n["Datum"].dt.to_period("W").astype(str)
             a["Woche"] = a["Datum"].dt.to_period("W").astype(str)
 
