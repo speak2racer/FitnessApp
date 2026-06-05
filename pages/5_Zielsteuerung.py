@@ -1,10 +1,15 @@
 import streamlit as st
 
+from datetime import date
+
 from utils import (
     lade_einstellungen,
     speichere_einstellungen,
     lade_tagesdaten,
+    lade_caliper_daten,
     lade_nutrition_logs,
+    berechne_makros,
+    speichere_nutrition_target,
     lade_css,
     zeige_refresh_button,
     STANDARD_FAKTOR
@@ -194,12 +199,32 @@ with st.container(border=True):
 
 
 if st.button("💾 Ziel speichern", use_container_width=True):
-    speichere_einstellungen(
-        gewicht,
-        ziel,
-        faktor,
-        einstellungen["carb_anteil"]
-    )
+    try:
+        speichere_einstellungen(
+            gewicht,
+            ziel,
+            faktor,
+            einstellungen["carb_anteil"]
+        )
 
-    st.success("Zielsteuerung gespeichert.")
+        caliper = lade_caliper_daten()
+        kfa = float(caliper["KFA"].iloc[-1]) if not caliper.empty else 15.0
+        makros = berechne_makros(gewicht, faktor, kfa)
+
+        speichere_nutrition_target(
+            date.today().strftime("%Y-%m-%d"),
+            makros["kalorien"],
+            makros["eiweiss_g"],
+            makros["fett_g"],
+            makros["kohlenhydrate_g"],
+            faktor,
+            makros["carb_anteil"]
+        )
+
+        st.cache_data.clear()
+        st.success("Zielsteuerung gespeichert und Supabase aktualisiert.")
+
+    except Exception as e:
+        st.error(f"Fehler beim Speichern: {e}")
+
     st.rerun()
