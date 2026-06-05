@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
 
 from utils import (
     lade_einstellungen,
@@ -406,5 +407,39 @@ if not caliper.empty:
             f"{letzter['Fettmasse']:.1f} kg",
             f"{fett_delta:+.1f} kg"
         )
+
+if not daten.empty:
+    with st.container(border=True):
+        st.subheader("📈 Gewichtsverlauf")
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=daten["Datum"],
+            y=daten["Gewicht_kg"],
+            mode="lines+markers",
+            name="Gewicht",
+            line=dict(color="#4C9BE8", width=2),
+            marker=dict(size=4)
+        ))
+
+        gewicht_7d = daten.set_index("Datum")["Gewicht_kg"].rolling("7D").mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=gewicht_7d["Datum"],
+            y=gewicht_7d["Gewicht_kg"],
+            mode="lines",
+            name="7-Tage Ø",
+            line=dict(color="#F4A623", width=2, dash="dash")
+        ))
+
+        fig.update_layout(
+            height=300,
+            margin=dict(l=0, r=0, t=10, b=0),
+            legend=dict(orientation="h", y=1.1),
+            xaxis_title=None,
+            yaxis_title="kg"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
 
 st.caption("Nutze links die Seiten Tagesdaten, Wochenanalyse, Caliper, Datenverwaltung und Zielsteuerung.")
