@@ -6,11 +6,13 @@ from utils import (
     lade_tagesdaten,
     lade_nutrition_logs,
     lade_css,
+    zeige_refresh_button,
     STANDARD_FAKTOR
 )
 
 st.set_page_config(page_title="Zielsteuerung", layout="wide")
 lade_css()
+zeige_refresh_button()
 
 st.title("🎯 Zielsteuerung")
 st.caption("Passe Ziel, Faktor und TDEE-basierte Empfehlungen zentral an.")

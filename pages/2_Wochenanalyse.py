@@ -11,11 +11,13 @@ from utils import (
     lade_nutrition_targets,
     lade_einstellungen,
     faktor_empfehlung,
-    lade_css
+    lade_css,
+    zeige_refresh_button
 )
 
 st.set_page_config(page_title="Wochenanalyse", layout="wide")
 lade_css()
+zeige_refresh_button()
 
 st.title("📈 Wochenanalyse")
 st.caption("Analysiere Gewicht, Ernährung, Aktivität und Körperanalyse.")

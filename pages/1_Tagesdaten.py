@@ -8,11 +8,13 @@ from utils import (
     lade_tagesdaten,
     lade_caliper_daten,
     speichere_nutrition_target,
-    lade_css
+    lade_css,
+    zeige_refresh_button
 )
 
 st.set_page_config(page_title="Tagesdaten", layout="wide")
 lade_css()
+zeige_refresh_button()
 
 st.title("📅 Tagesdaten")
 st.caption(
