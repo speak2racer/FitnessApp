@@ -25,3 +25,15 @@ pip install -r requirements.txt
 ```bash
 streamlit run app.py
 ```
+
+## Projektstruktur
+
+```
+FitnessApp/
+├── app.py              # Haupt-Dashboard
+├── utils.py            # Hilfsfunktionen
+├── style.css           # Styling
+├── pages/              # Unterseiten (Tagesdaten, Wochenanalyse, Caliper, ...)
+├── requirements.txt    # Python-Abhängigkeiten
+└── app/                # Android HealthConnect Export App
+```
