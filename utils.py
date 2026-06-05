@@ -442,6 +442,24 @@ def loesche_alle_supabase_gewichte():
     response.raise_for_status()
 
 
+def loesche_caliper_supabase(datum):
+    response = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/caliper",
+        headers=supabase_headers(),
+        params={"datum": f"eq.{datum}"}
+    )
+    response.raise_for_status()
+
+
+def loesche_nutrition_target(datum):
+    response = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/nutrition_targets",
+        headers=supabase_headers(),
+        params={"datum": f"eq.{datum}"}
+    )
+    response.raise_for_status()
+
+
 def speichere_nutrition_target(
     datum,
     kalorien,
