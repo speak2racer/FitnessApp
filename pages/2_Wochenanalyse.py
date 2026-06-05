@@ -31,17 +31,18 @@ zeitraum = st.selectbox(
 )
 
 if zeitraum == "Diese Woche":
-    daten = lade_tagesdaten(wochenstart.strftime("%Y-%m-%d"))
+    ab_datum = wochenstart.strftime("%Y-%m-%d")
 elif zeitraum == "Letzte 14 Tage":
-    daten = lade_tagesdaten((heute - timedelta(days=14)).strftime("%Y-%m-%d"))
+    ab_datum = (heute - timedelta(days=14)).strftime("%Y-%m-%d")
 elif zeitraum == "Letzte 30 Tage":
-    daten = lade_tagesdaten((heute - timedelta(days=30)).strftime("%Y-%m-%d"))
+    ab_datum = (heute - timedelta(days=30)).strftime("%Y-%m-%d")
 else:
-    daten = lade_tagesdaten()
+    ab_datum = None
 
-nutrition_logs = lade_nutrition_logs()
-activity_logs = lade_activity_logs()
-nutrition_targets = lade_nutrition_targets()
+daten = lade_tagesdaten(ab_datum)
+nutrition_logs = lade_nutrition_logs(ab_datum)
+activity_logs = lade_activity_logs(ab_datum)
+nutrition_targets = lade_nutrition_targets(ab_datum)
 caliper = lade_caliper_daten()
 
 if daten.empty:
