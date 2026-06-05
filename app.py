@@ -207,13 +207,18 @@ with tab_woche:
         st.subheader("🧮 Geschätzter TDEE")
 
         if not daten.empty and not nutrition_logs.empty:
-            gw = daten.copy()
-            kw = nutrition_logs.copy()
+            gw = daten[daten["Datum"].dt.normalize() < heute].copy()
+            kw = nutrition_logs[
+                (nutrition_logs["Datum"].dt.normalize() < heute) &
+                (nutrition_logs["Kalorien_gegessen"] > 0)
+            ].copy()
             gw["Woche"] = gw["Datum"].dt.to_period("W").astype(str)
             kw["Woche"] = kw["Datum"].dt.to_period("W").astype(str)
 
             g_weekly = gw.groupby("Woche")["Gewicht_kg"].mean().reset_index().round(2)
+            kcal_counts = kw.groupby("Woche")["Kalorien_gegessen"].count()
             k_weekly = kw.groupby("Woche")["Kalorien_gegessen"].mean().reset_index().round(0)
+            k_weekly = k_weekly[k_weekly["Woche"].isin(kcal_counts[kcal_counts >= 5].index)]
             tdee_data = g_weekly.merge(k_weekly, on="Woche").sort_values("Woche")
 
             if len(tdee_data) >= 2:
