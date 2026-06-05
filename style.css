@@ -1,6 +1,15 @@
-/* HEADER AUSBLENDEN */
+/* HEADER: nur Inhalt ausblenden, Toggle-Button sichtbar lassen */
 
 header[data-testid="stHeader"] {
+    background: transparent !important;
+    height: 2.5rem !important;
+}
+
+header[data-testid="stHeader"]::before {
+    display: none;
+}
+
+header[data-testid="stHeader"] > div:first-child {
     display: none;
 }
 
