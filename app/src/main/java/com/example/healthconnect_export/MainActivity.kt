@@ -51,9 +51,11 @@ class MainActivity : ComponentActivity() {
             val weightSync = SyncPreferences.getLastSync(this, "weight")
             val nutritionSync = SyncPreferences.getLastSync(this, "nutrition")
             val activitySync = SyncPreferences.getLastSync(this, "activity")
+            val targetSync = SyncPreferences.getLastSync(this, "nutrition_target")
             val weightError = SyncPreferences.getLastError(this, "weight")
             val nutritionError = SyncPreferences.getLastError(this, "nutrition")
             val activityError = SyncPreferences.getLastError(this, "activity")
+            val targetError = SyncPreferences.getLastError(this, "nutrition_target")
 
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -94,6 +96,7 @@ class MainActivity : ComponentActivity() {
                                 SyncStatusRow("⚖️ Gewicht", weightSync, weightError)
                                 SyncStatusRow("🍽️ Ernährung", nutritionSync, nutritionError)
                                 SyncStatusRow("🏃 Aktivität", activitySync, activityError)
+                                SyncStatusRow("🎯 Tagesziel", targetSync, targetError)
                             }
                         }
 
@@ -130,9 +133,18 @@ class MainActivity : ComponentActivity() {
 
                                 Button(
                                     onClick = {
+                                        enqueueOnce<NutritionTargetSyncWorker>("target_once")
+                                        statusText = "🎯 Tagesziel-Sync gestartet..."
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Tagesziel synchronisieren") }
+
+                                Button(
+                                    onClick = {
                                         enqueueOnce<WeightSyncWorker>("weight_once")
                                         enqueueOnce<NutritionSyncWorker>("nutrition_once")
                                         enqueueOnce<ActivitySyncWorker>("activity_once")
+                                        enqueueOnce<NutritionTargetSyncWorker>("target_once")
                                         statusText = "🔄 Alle Syncs gestartet..."
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -168,6 +180,7 @@ class MainActivity : ComponentActivity() {
         enqueue("weight_sync", WeightSyncWorker::class.java)
         enqueue("nutrition_sync", NutritionSyncWorker::class.java)
         enqueue("activity_sync", ActivitySyncWorker::class.java)
+        enqueue("nutrition_target_sync", NutritionTargetSyncWorker::class.java)
     }
 
     private inline fun <reified T : CoroutineWorker> enqueueOnce(tag: String) {
