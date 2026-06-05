@@ -1,16 +1,18 @@
-/* HEADER: nur Inhalt ausblenden, Toggle-Button sichtbar lassen */
+/* HEADER ausblenden, aber Sidebar-Toggle immer sichtbar */
 
 header[data-testid="stHeader"] {
     background: transparent !important;
     height: 2.5rem !important;
 }
 
-header[data-testid="stHeader"]::before {
-    display: none;
+header[data-testid="stHeader"] > * {
+    visibility: hidden;
 }
 
-header[data-testid="stHeader"] > div:first-child {
-    display: none;
+/* Sidebar-Toggle beim Einklappen immer anzeigen */
+[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
 }
 
 /* APP HINTERGRUND */
