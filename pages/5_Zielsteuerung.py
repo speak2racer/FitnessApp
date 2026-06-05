@@ -125,23 +125,21 @@ with st.container(border=True):
             .sort_values("Woche")
         )
 
-        if len(tdee_data) >= 2:
-            aktuelle = tdee_data.iloc[-1]
-            vorherige = tdee_data.iloc[-2]
+        tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
+        tdee_data = tdee_data.sort_values("Woche").reset_index(drop=True)
 
-            gewicht_delta = (
-                aktuelle["Gewicht_kg"]
-                - vorherige["Gewicht_kg"]
-            )
+        paar = None
+        for i in range(len(tdee_data) - 1, 0, -1):
+            if (tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]) == 1:
+                paar = (tdee_data.iloc[i-1], tdee_data.iloc[i])
+                break
 
-            kcal_delta_pro_tag = (
-                gewicht_delta * 7700
-            ) / 7
+        if paar:
+            vorherige, aktuelle = paar
 
-            echter_tdee = (
-                aktuelle["Kalorien_gegessen"]
-                - kcal_delta_pro_tag
-            )
+            gewicht_delta = aktuelle["Gewicht_kg"] - vorherige["Gewicht_kg"]
+            kcal_delta_pro_tag = (gewicht_delta * 7700) / 7
+            echter_tdee = aktuelle["Kalorien_gegessen"] - kcal_delta_pro_tag
 
             gewicht_lbs_tdee = aktuelle["Gewicht_kg"] * 2.20462
             erhalt_faktor = echter_tdee / gewicht_lbs_tdee
@@ -188,10 +186,7 @@ with st.container(border=True):
                 st.rerun()
 
         else:
-            st.info(
-                "Für eine TDEE-Empfehlung brauchst du mindestens zwei Wochen "
-                "mit Gewicht und Kalorien."
-            )
+            st.info("Keine zwei aufeinanderfolgenden vollständigen Wochen gefunden.")
     else:
         st.info("Noch nicht genug Gewicht- oder Kaloriendaten vorhanden.")
 
