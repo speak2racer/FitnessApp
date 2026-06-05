@@ -455,34 +455,68 @@ if not daten.empty:
     with st.container(border=True):
         st.subheader("📈 Gewichtsverlauf")
 
-        fig = go.Figure()
+        try:
+            y_min = daten["Gewicht_kg"].min() * 0.98
+            y_max = daten["Gewicht_kg"].max() * 1.02
 
-        fig.add_trace(go.Scatter(
-            x=daten["Datum"],
-            y=daten["Gewicht_kg"],
-            mode="lines+markers",
-            name="Gewicht",
-            line=dict(color="#4C9BE8", width=2),
-            marker=dict(size=4)
-        ))
+            fig = go.Figure()
 
-        gewicht_7d = daten.set_index("Datum")["Gewicht_kg"].rolling("7D").mean().reset_index()
-        fig.add_trace(go.Scatter(
-            x=gewicht_7d["Datum"],
-            y=gewicht_7d["Gewicht_kg"],
-            mode="lines",
-            name="7-Tage Ø",
-            line=dict(color="#F4A623", width=2, dash="dash")
-        ))
+            fig.add_trace(go.Scatter(
+                x=daten["Datum"],
+                y=daten["Gewicht_kg"],
+                mode="lines+markers",
+                name="Gewicht",
+                line=dict(color="#4C9BE8", width=2),
+                marker=dict(size=4)
+            ))
 
-        fig.update_layout(
-            height=300,
-            margin=dict(l=0, r=0, t=10, b=0),
-            legend=dict(orientation="h", y=1.1),
-            xaxis_title=None,
-            yaxis_title="kg"
-        )
+            if len(daten) >= 7:
+                gewicht_7d = daten.set_index("Datum")["Gewicht_kg"].rolling("7D").mean().reset_index()
+                fig.add_trace(go.Scatter(
+                    x=gewicht_7d["Datum"],
+                    y=gewicht_7d["Gewicht_kg"],
+                    mode="lines",
+                    name="7-Tage Ø",
+                    line=dict(color="#F4A623", width=2, dash="dash")
+                ))
 
-        st.plotly_chart(fig, use_container_width=True)
+            fig.update_layout(
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=0),
+                legend=dict(orientation="h", y=1.1),
+                xaxis_title=None,
+                yaxis_title="kg",
+                yaxis=dict(range=[y_min, y_max])
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Chart konnte nicht geladen werden: {e}")
+
+with st.container(border=True):
+    st.subheader("🔔 Heutige Erinnerungen")
+
+    heute_str = pd.Timestamp.today().normalize()
+    hinweise = []
+
+    gewicht_heute = (
+        daten[daten["Datum"].dt.normalize() == heute_str]
+        if not daten.empty else pd.DataFrame()
+    )
+    if gewicht_heute.empty:
+        hinweise.append("⚖️ Noch kein Gewicht für heute eingetragen.")
+
+    nutrition_heute_check = (
+        nutrition_logs[nutrition_logs["Datum"].dt.normalize() == heute_str]
+        if not nutrition_logs.empty else pd.DataFrame()
+    )
+    if nutrition_heute_check.empty:
+        hinweise.append("🍽️ Noch keine Ernährungsdaten für heute vorhanden.")
+
+    if hinweise:
+        for h in hinweise:
+            st.warning(h)
+    else:
+        st.success("✅ Alle Daten für heute sind eingetragen.")
 
 st.caption("Nutze links die Seiten Tagesdaten, Wochenanalyse, Caliper, Datenverwaltung und Zielsteuerung.")
