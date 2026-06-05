@@ -7,11 +7,13 @@ from utils import (
     berechne_kfa,
     lade_tagesdaten,
     speichere_caliper_supabase,
-    lade_css
+    lade_css,
+    zeige_refresh_button
 )
 
 st.set_page_config(page_title="Caliper", layout="wide")
 lade_css()
+zeige_refresh_button()
 
 st.title("📏 Caliper Messung")
 st.caption("Speichert KFA, FFM und Fettmasse direkt in Supabase.")

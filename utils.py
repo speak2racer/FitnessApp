@@ -34,6 +34,14 @@ def lade_css():
             )
 
 
+def zeige_refresh_button():
+    with st.sidebar:
+        st.divider()
+        if st.button("🔄 Daten aktualisieren", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
+
 def lade_einstellungen():
     standard = {
         "gewicht": 90.0,

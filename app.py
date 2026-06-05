@@ -9,7 +9,8 @@ from utils import (
     berechne_makros,
     lade_tagesdaten,
     lade_caliper_daten,
-    lade_css
+    lade_css,
+    zeige_refresh_button
 )
 
 st.set_page_config(
@@ -18,6 +19,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 lade_css()
+zeige_refresh_button()
 
 st.title("🏠 Fitness Dashboard")
 st.caption("Kompakter Überblick über Gewicht, Kalorien, Aktivität, Compliance und TDEE.")
@@ -31,7 +33,22 @@ activity_logs = lade_activity_logs()
 
 if not daten.empty:
     letzter_sync = daten["Datum"].max().strftime("%d.%m.%Y")
-    st.success(f"✅ Letztes synchronisiertes Gewicht: {letzter_sync}")
+
+    vorwoche = daten[
+        daten["Datum"].dt.to_period("W")
+        == (daten["Datum"].max() - pd.Timedelta(weeks=1)).to_period("W")
+    ]
+    aktuelle_woche_daten = daten[
+        daten["Datum"].dt.to_period("W")
+        == daten["Datum"].max().to_period("W")
+    ]
+
+    if not vorwoche.empty and not aktuelle_woche_daten.empty:
+        gewicht_trend = float(aktuelle_woche_daten["Gewicht_kg"].mean()) - float(vorwoche["Gewicht_kg"].mean())
+        trend_symbol = "📉" if gewicht_trend < -0.1 else "📈" if gewicht_trend > 0.1 else "➡️"
+        st.success(f"✅ Letzter Sync: {letzter_sync}  |  Gewichtstrend: {trend_symbol} {gewicht_trend:+.2f} kg zur Vorwoche")
+    else:
+        st.success(f"✅ Letztes synchronisiertes Gewicht: {letzter_sync}")
 else:
     st.warning("⚠️ Noch keine Supabase-Gewichtsdaten vorhanden.")
 
@@ -370,6 +387,32 @@ with st.container(border=True):
     else:
         st.info("Noch nicht genug Gewicht- oder Kaloriendaten vorhanden.")
 
+
+if not nutrition_logs.empty:
+    with st.container(border=True):
+        st.subheader("🎯 Wochenziel-Fortschritt")
+
+        diese_woche = nutrition_logs[
+            nutrition_logs["Datum"].dt.to_period("W")
+            == pd.Timestamp.today().to_period("W")
+        ]
+
+        if not diese_woche.empty:
+            ziel_kcal = makros["kalorien"]
+            tage_im_ziel = (
+                (diese_woche["Kalorien_gegessen"] >= ziel_kcal * 0.9) &
+                (diese_woche["Kalorien_gegessen"] <= ziel_kcal * 1.1)
+            ).sum()
+            tage_gesamt = len(diese_woche)
+            tage_woche = 7
+
+            p1, p2 = st.columns(2)
+            p1.metric("Tage im Zielbereich", f"{tage_im_ziel} / {tage_gesamt}")
+            p2.metric("Wochenfortschritt", f"{tage_gesamt} / {tage_woche} Tage")
+
+            st.progress(tage_im_ziel / tage_woche, text=f"{tage_im_ziel} von 7 Tagen im Kalorienbereich (±10%)")
+        else:
+            st.info("Noch keine Ernährungsdaten diese Woche.")
 
 if not caliper.empty:
     with st.container(border=True):
