@@ -61,6 +61,7 @@ def lade_einstellungen():
 
     return standard
 
+@st.cache_data(ttl=300)
 def lade_nutrition_targets(ab_datum=None):
     try:
         url = f"{SUPABASE_URL}/rest/v1/nutrition_targets"
