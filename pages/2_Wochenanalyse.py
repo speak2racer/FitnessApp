@@ -155,7 +155,10 @@ with tab_uebersicht:
     ):
         heute_norm = pd.Timestamp.today().normalize()
         nutrition = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute_norm].copy()
-        activity = activity_logs[activity_logs["Datum"].dt.normalize() < heute_norm].copy()
+        activity = activity_logs[
+            (activity_logs["Datum"].dt.normalize() < heute_norm) &
+            (activity_logs["Gesamtverbrauch"] > 0)
+        ].copy()
         targets = nutrition_targets.copy()
 
         nutrition["Woche"] = nutrition["Datum"].dt.to_period("W").astype(str)
