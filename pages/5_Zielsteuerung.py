@@ -89,20 +89,16 @@ with st.container(border=True):
     st.subheader("🧮 Empfehlung aus echtem TDEE")
 
     if not daten.empty and not nutrition_logs.empty:
-        gewicht_woche = daten.copy()
-        kcal_woche = nutrition_logs.copy()
+        heute_norm = pd.Timestamp.today().normalize()
 
-        gewicht_woche["Woche"] = (
-            gewicht_woche["Datum"]
-            .dt.to_period("W")
-            .astype(str)
-        )
+        gewicht_woche = daten[daten["Datum"].dt.normalize() < heute_norm].copy()
+        kcal_woche = nutrition_logs[
+            (nutrition_logs["Datum"].dt.normalize() < heute_norm) &
+            (nutrition_logs["Kalorien_gegessen"] > 0)
+        ].copy()
 
-        kcal_woche["Woche"] = (
-            kcal_woche["Datum"]
-            .dt.to_period("W")
-            .astype(str)
-        )
+        gewicht_woche["Woche"] = gewicht_woche["Datum"].dt.to_period("W").astype(str)
+        kcal_woche["Woche"] = kcal_woche["Datum"].dt.to_period("W").astype(str)
 
         gewicht_weekly = (
             gewicht_woche.groupby("Woche")["Gewicht_kg"]
@@ -111,19 +107,20 @@ with st.container(border=True):
             .round(2)
         )
 
+        # Nur Wochen mit mindestens 5 Tagen Kaloriendaten
+        kcal_counts = kcal_woche.groupby("Woche")["Kalorien_gegessen"].count()
         kcal_weekly = (
             kcal_woche.groupby("Woche")["Kalorien_gegessen"]
             .mean()
             .reset_index()
             .round(0)
         )
+        kcal_weekly = kcal_weekly[kcal_weekly["Woche"].isin(
+            kcal_counts[kcal_counts >= 5].index
+        )]
 
         tdee_data = (
-            gewicht_weekly.merge(
-                kcal_weekly,
-                on="Woche",
-                how="inner"
-            )
+            gewicht_weekly.merge(kcal_weekly, on="Woche", how="inner")
             .sort_values("Woche")
         )
 
