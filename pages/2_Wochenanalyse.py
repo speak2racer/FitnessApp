@@ -61,6 +61,12 @@ def format_datum(df):
 
 
 def chart_karte(df, x, y, titel, farbe, einheit):
+    werte = df[y].dropna()
+    y_min = werte.min() * 0.97
+    y_max = werte.max() * 1.03
+
+    fill_farbe = farbe.replace(")", ", 0.15)").replace("rgb", "rgba") if farbe.startswith("rgb") else farbe + "26"
+
     fig = go.Figure()
 
     fig.add_trace(
@@ -68,28 +74,33 @@ def chart_karte(df, x, y, titel, farbe, einheit):
             x=df[x],
             y=df[y],
             mode="lines+markers",
-            line=dict(color=farbe, width=4),
-            marker=dict(size=9, color=farbe),
-            fill="tozeroy",
-            fillcolor="rgba(59,130,246,0.12)",
-            hovertemplate="%{x}<br>%{y:.2f} " + einheit + "<extra></extra>"
+            line=dict(color=farbe, width=3),
+            marker=dict(size=8, color=farbe, line=dict(width=2, color="#ffffff")),
+            fill="toself" if len(df) < 2 else "tonexty",
+            hovertemplate="%{x}<br><b>%{y:.2f} " + einheit + "</b><extra></extra>"
         )
     )
 
     fig.update_layout(
-        title=dict(text=titel, font=dict(size=22, color=farbe), x=0.03),
-        height=420,
+        title=dict(text=titel, font=dict(size=20, color=farbe), x=0.03),
+        height=340,
         template="plotly_dark",
-        paper_bgcolor="#0f172a",
-        plot_bgcolor="#111827",
-        font=dict(color="#e5e7eb", size=14),
-        margin=dict(l=45, r=25, t=65, b=50),
-        xaxis=dict(title="", showgrid=False, type="category"),
+        paper_bgcolor="#1e293b",
+        plot_bgcolor="#1e293b",
+        font=dict(color="#e5e7eb", size=13),
+        margin=dict(l=50, r=20, t=55, b=40),
+        xaxis=dict(
+            title="",
+            showgrid=False,
+            type="category",
+            tickangle=-30
+        ),
         yaxis=dict(
             title=einheit,
             showgrid=True,
             gridcolor="#334155",
-            zeroline=False
+            zeroline=False,
+            range=[y_min, y_max]
         )
     )
 
