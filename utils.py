@@ -194,7 +194,10 @@ def berechne_makros(gewicht_kg, faktor, kfa):
     gewicht_lbs = round(gewicht_kg * 2.20462, 2)
     kalorien = round(gewicht_lbs * faktor)
 
-    eiweiss_g = round(gewicht_lbs)
+    # Protein auf Basis Magermasse (Helms: ~1g/lb FFM)
+    ffm_kg = gewicht_kg * (1 - kfa / 100)
+    ffm_lbs = ffm_kg * 2.20462
+    eiweiss_g = round(ffm_lbs)
     eiweiss_kcal = eiweiss_g * 4
 
     rest_kalorien = kalorien - eiweiss_kcal
@@ -211,6 +214,14 @@ def berechne_makros(gewicht_kg, faktor, kfa):
 
     fett_kcal = rest_kalorien - kohlenhydrate_kcal
     fett_g = round(fett_kcal / 9)
+
+    # Mindest-Fett sicherstellen (Helms: ~0.35g/lb Gesamtgewicht für Hormongesundheit)
+    min_fett_g = round(gewicht_lbs * 0.35)
+    if fett_g < min_fett_g:
+        fett_g = min_fett_g
+        fett_kcal = fett_g * 9
+        kohlenhydrate_kcal = rest_kalorien - fett_kcal
+        kohlenhydrate_g = max(0, round(kohlenhydrate_kcal / 4))
 
     return {
         "gewicht_lbs": gewicht_lbs,

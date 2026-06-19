@@ -78,7 +78,11 @@ class NutritionTargetSyncWorker(
     private fun berechneMakros(gewichtKg: Double, faktor: Double, kfa: Double): NutritionTarget {
         val gewichtLbs = gewichtKg * 2.20462
         val kalorien = round(gewichtLbs * faktor).toInt()
-        val eiweissG = round(gewichtLbs).toInt()
+
+        // Protein auf Basis Magermasse (Helms: ~1g/lb FFM)
+        val ffmKg = gewichtKg * (1 - kfa / 100.0)
+        val ffmLbs = ffmKg * 2.20462
+        val eiweissG = round(ffmLbs).toInt()
         val eiweissKcal = eiweissG * 4
         val restKalorien = kalorien - eiweissKcal
 
@@ -88,10 +92,19 @@ class NutritionTargetSyncWorker(
             else -> 60
         }
 
-        val kohlenhydrateKcal = restKalorien * (carbAnteil / 100.0)
-        val kohlenhydrateG = round(kohlenhydrateKcal / 4).toInt()
-        val fettKcal = restKalorien - kohlenhydrateKcal
-        val fettG = round(fettKcal / 9).toInt()
+        var kohlenhydrateKcal = restKalorien * (carbAnteil / 100.0)
+        var kohlenhydrateG = round(kohlenhydrateKcal / 4).toInt()
+        var fettKcal = restKalorien - kohlenhydrateKcal
+        var fettG = round(fettKcal / 9).toInt()
+
+        // Mindest-Fett sicherstellen (Helms: ~0.35g/lb Gesamtgewicht)
+        val minFettG = round(gewichtLbs * 0.35).toInt()
+        if (fettG < minFettG) {
+            fettG = minFettG
+            fettKcal = fettG * 9.0
+            kohlenhydrateKcal = restKalorien - fettKcal
+            kohlenhydrateG = maxOf(0, round(kohlenhydrateKcal / 4).toInt())
+        }
 
         return NutritionTarget(
             datum = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
