@@ -440,7 +440,7 @@ with tab_charts:
                     showlegend=False,
                     xaxis=XAXIS_STYLE,
                     yaxis=dict(
-                        **YAXIS_STYLE,
+                        showgrid=True, gridcolor="#1e293b", color="#64748b",
                         title="kcal",
                         zeroline=True,
                         zerolinecolor="#475569",
