@@ -414,36 +414,56 @@ with tab_charts:
             nd = nutr_b.groupby("Tag")["Kalorien_gegessen"].sum().reset_index()
             ad = act_b.groupby("Tag")["Gesamtverbrauch"].mean().reset_index()
             bilanz_df = nd.merge(ad, on="Tag", how="inner")
-            bilanz_df["Bilanz"] = bilanz_df["Kalorien_gegessen"] - bilanz_df["Gesamtverbrauch"]
+            bilanz_df["Bilanz_Verbrauch"] = bilanz_df["Kalorien_gegessen"] - bilanz_df["Gesamtverbrauch"]
             bilanz_df = bilanz_df.rename(columns={"Tag": "Datum"})
+
+            if not nutrition_targets.empty:
+                tgt_b = nutrition_targets.copy()
+                tgt_b["Tag"] = tgt_b["Datum"].dt.normalize()
+                tgt_d = tgt_b.groupby("Tag")["Kalorienziel"].mean().reset_index().rename(columns={"Tag": "Datum"})
+                bilanz_df = bilanz_df.merge(tgt_d, on="Datum", how="left")
+                bilanz_df["Bilanz_Ziel"] = bilanz_df["Kalorien_gegessen"] - bilanz_df["Kalorienziel"]
 
             if not bilanz_df.empty:
                 st.markdown("### ⚖️ Kalorienbilanz")
 
-                farben = ["#22c55e" if v <= 0 else "#ef4444" for v in bilanz_df["Bilanz"]]
-                y_abs = bilanz_df["Bilanz"].abs().max() * 1.15
-
-                fig_bilanz = go.Figure()
-                fig_bilanz.add_trace(go.Bar(
-                    x=bilanz_df["Datum"], y=bilanz_df["Bilanz"],
-                    marker_color=farben,
-                    hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:+.0f} kcal</b><extra></extra>"
-                ))
-                fig_bilanz.add_hline(y=0, line_color="#475569", line_width=1.5)
-                fig_bilanz.update_layout(
-                    **{**LAYOUT_BASE, "height": 260},
-                    title=dict(
-                        text="Kalorienbilanz (Gegessen − Verbrauch)",
-                        font=dict(size=15, color="#e5e7eb"), x=0.01
-                    ),
-                    showlegend=False,
-                    xaxis=XAXIS_STYLE,
-                    yaxis=dict(
-                        showgrid=True, gridcolor="#1e293b", color="#64748b",
-                        title="kcal",
-                        zeroline=True,
-                        zerolinecolor="#475569",
-                        range=[-y_abs, y_abs]
+                def bilanz_chart(df, col, titel):
+                    farben = ["#22c55e" if v <= 0 else "#ef4444" for v in df[col]]
+                    y_abs = df[col].abs().max() * 1.15
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=df["Datum"], y=df[col],
+                        marker_color=farben,
+                        hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:+.0f} kcal</b><extra></extra>"
+                    ))
+                    fig.add_hline(y=0, line_color="#475569", line_width=1.5)
+                    fig.update_layout(
+                        **{**LAYOUT_BASE, "height": 260},
+                        title=dict(text=titel, font=dict(size=15, color="#e5e7eb"), x=0.01),
+                        showlegend=False,
+                        xaxis=XAXIS_STYLE,
+                        yaxis=dict(
+                            showgrid=True, gridcolor="#1e293b", color="#64748b",
+                            title="kcal", zeroline=True, zerolinecolor="#475569",
+                            range=[-y_abs, y_abs]
+                        )
                     )
-                )
-                st.plotly_chart(fig_bilanz, use_container_width=True)
+                    return fig
+
+                if "Bilanz_Ziel" in bilanz_df.columns and bilanz_df["Bilanz_Ziel"].notna().any():
+                    bc1, bc2 = st.columns(2)
+                    with bc1:
+                        st.plotly_chart(
+                            bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Gegessen − Verbrauch"),
+                            use_container_width=True
+                        )
+                    with bc2:
+                        st.plotly_chart(
+                            bilanz_chart(bilanz_df, "Bilanz_Ziel", "Gegessen − Ziel"),
+                            use_container_width=True
+                        )
+                else:
+                    st.plotly_chart(
+                        bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)"),
+                        use_container_width=True
+                    )
