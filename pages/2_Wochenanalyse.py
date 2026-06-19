@@ -55,56 +55,73 @@ ziel = einstellungen["ziel"]
 faktor = float(einstellungen["faktor"])
 
 
-def format_datum(df):
-    df = df.copy()
-    df["Datum_Anzeige"] = df["Datum"].dt.strftime("%d.%m.%Y")
-    return df
+def _hex_to_rgba(hex_color, alpha=0.12):
+    try:
+        h = hex_color.lstrip("#")
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return f"rgba({r},{g},{b},{alpha})"
+    except Exception:
+        return "rgba(76,155,232,0.12)"
 
 
-def chart_karte(df, x, y, titel, farbe, einheit):
-    werte = df[y].dropna()
+LAYOUT_BASE = dict(
+    template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#94a3b8", size=12),
+    margin=dict(l=50, r=15, t=50, b=40),
+    height=290,
+)
+
+XAXIS_STYLE = dict(showgrid=False, tickformat="%d.%m", tickangle=-30, color="#64748b")
+YAXIS_STYLE = dict(showgrid=True, gridcolor="#1e293b", zeroline=False, color="#64748b")
+
+
+def chart_linie(df, x_col, y_col, titel, farbe, einheit, zeige_rolling=False):
+    werte = df[y_col].dropna()
+    if werte.empty:
+        return go.Figure()
+
     y_min = werte.min() * 0.97
     y_max = werte.max() * 1.03
-
-    fill_farbe = farbe.replace(")", ", 0.15)").replace("rgb", "rgba") if farbe.startswith("rgb") else farbe + "26"
+    fill_rgba = _hex_to_rgba(farbe, 0.13)
 
     fig = go.Figure()
 
-    fig.add_trace(
-        go.Scatter(
-            x=df[x],
-            y=df[y],
-            mode="lines+markers",
-            line=dict(color=farbe, width=3),
-            marker=dict(size=8, color=farbe, line=dict(width=2, color="#ffffff")),
-            fill="toself" if len(df) < 2 else "tonexty",
-            hovertemplate="%{x}<br><b>%{y:.2f} " + einheit + "</b><extra></extra>"
-        )
-    )
+    # unsichtbare Baseline für Flächenfüllung
+    fig.add_trace(go.Scatter(
+        x=df[x_col], y=[y_min] * len(df),
+        mode="lines", line=dict(width=0),
+        showlegend=False, hoverinfo="skip"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df[x_col], y=df[y_col],
+        mode="lines+markers",
+        line=dict(color=farbe, width=2.5),
+        marker=dict(size=6, color=farbe, line=dict(width=1.5, color="#0f172a")),
+        fill="tonexty", fillcolor=fill_rgba,
+        name=titel,
+        hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:.1f} " + einheit + "</b><extra></extra>"
+    ))
+
+    if zeige_rolling and len(df) >= 7:
+        rolling = df.set_index(x_col)[y_col].rolling(7, min_periods=3).mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=rolling[x_col], y=rolling[y_col],
+            mode="lines", name="7-Tage Ø",
+            line=dict(color="#f59e0b", width=2, dash="dot"),
+            hovertemplate="%{x|%d.%m.%Y}<br><b>Ø %{y:.1f} " + einheit + "</b><extra></extra>"
+        ))
 
     fig.update_layout(
-        title=dict(text=titel, font=dict(size=20, color=farbe), x=0.03),
-        height=340,
-        template="plotly_dark",
-        paper_bgcolor="#1e293b",
-        plot_bgcolor="#1e293b",
-        font=dict(color="#e5e7eb", size=13),
-        margin=dict(l=50, r=20, t=55, b=40),
-        xaxis=dict(
-            title="",
-            showgrid=False,
-            type="category",
-            tickangle=-30
-        ),
-        yaxis=dict(
-            title=einheit,
-            showgrid=True,
-            gridcolor="#334155",
-            zeroline=False,
-            range=[y_min, y_max]
-        )
+        **LAYOUT_BASE,
+        title=dict(text=titel, font=dict(size=15, color=farbe), x=0.01),
+        showlegend=zeige_rolling,
+        legend=dict(orientation="h", y=1.18, x=0, font=dict(size=11)),
+        xaxis=XAXIS_STYLE,
+        yaxis=dict(**YAXIS_STYLE, title=einheit, range=[y_min, y_max])
     )
-
     return fig
 
 
@@ -116,6 +133,7 @@ wochenmittel = (
 
 tab_uebersicht, tab_charts = st.tabs(["📋 Übersicht", "📈 Charts"])
 
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_uebersicht:
     with st.container(border=True):
         st.subheader("📊 Wochenmittel Gewicht")
@@ -127,11 +145,7 @@ if len(wochenmittel) >= 2:
     veraenderung_kg = aktuelles_gewicht - vorheriges_gewicht
     veraenderung_lbs = veraenderung_kg * 2.20462
 
-    empfohlener_faktor = faktor_empfehlung(
-        ziel,
-        veraenderung_lbs,
-        faktor
-    )
+    empfohlener_faktor = faktor_empfehlung(ziel, veraenderung_lbs, faktor)
 
     with tab_uebersicht:
         with st.container(border=True):
@@ -211,39 +225,19 @@ with tab_uebersicht:
         )
 
         weekly_full["Bilanz_vs_Verbrauch"] = (
-            weekly_full["Kalorien_gegessen"]
-            - weekly_full["Gesamtverbrauch"]
+            weekly_full["Kalorien_gegessen"] - weekly_full["Gesamtverbrauch"]
         )
-
         weekly_full["Bilanz_vs_Ziel"] = (
-            weekly_full["Kalorien_gegessen"]
-            - weekly_full["Kalorienziel"]
+            weekly_full["Kalorien_gegessen"] - weekly_full["Kalorienziel"]
         )
-
         weekly_full["Kalorien_Compliance"] = (
-            100
-            - (
-                abs(
-                    weekly_full["Kalorien_gegessen"]
-                    - weekly_full["Kalorienziel"]
-                )
-                / weekly_full["Kalorienziel"]
-                * 100
-            )
+            100 - (abs(weekly_full["Kalorien_gegessen"] - weekly_full["Kalorienziel"])
+                   / weekly_full["Kalorienziel"] * 100)
         ).clip(lower=0)
-
         weekly_full["Protein_Compliance"] = (
-            100
-            - (
-                abs(
-                    weekly_full["Protein_gegessen"]
-                    - weekly_full["Eiweiss_g"]
-                )
-                / weekly_full["Eiweiss_g"]
-                * 100
-            )
+            100 - (abs(weekly_full["Protein_gegessen"] - weekly_full["Eiweiss_g"])
+                   / weekly_full["Eiweiss_g"] * 100)
         ).clip(lower=0)
-
         weekly_full["Compliance"] = (
             weekly_full["Kalorien_Compliance"] * 0.6
             + weekly_full["Protein_Compliance"] * 0.4
@@ -252,7 +246,6 @@ with tab_uebersicht:
         aktuell = weekly_full.iloc[-1]
 
         s1, s2, s3, s4, s5 = st.columns(5)
-
         s1.metric("Gewicht Ø", f"{aktuell['Gewicht_kg']:.2f} kg")
         s2.metric("Kalorien Ø", f"{aktuell['Kalorien_gegessen']:.0f} kcal")
         s3.metric("Protein Ø", f"{aktuell['Protein_gegessen']:.0f} g")
@@ -260,14 +253,10 @@ with tab_uebersicht:
         s5.metric("Compliance", f"{aktuell['Compliance']:.1f}%")
 
         k1, k2, k3, k4 = st.columns(4)
-
         k1.metric("Ziel Ø", f"{aktuell['Kalorienziel']:.0f} kcal")
         k2.metric("Verbrauch Ø", f"{aktuell['Gesamtverbrauch']:.0f} kcal")
         k3.metric("Bilanz vs Ziel", f"{aktuell['Bilanz_vs_Ziel']:+.0f} kcal")
-        k4.metric(
-            "Bilanz vs Verbrauch",
-            f"{aktuell['Bilanz_vs_Verbrauch']:+.0f} kcal"
-        )
+        k4.metric("Bilanz vs Verbrauch", f"{aktuell['Bilanz_vs_Verbrauch']:+.0f} kcal")
 
         if aktuell["Bilanz_vs_Verbrauch"] < -300:
             st.success("Du befindest dich aktuell in einem deutlichen Kaloriendefizit.")
@@ -276,76 +265,186 @@ with tab_uebersicht:
         else:
             st.info("Du befindest dich aktuell ungefähr auf Erhaltung.")
 
-        st.dataframe(
-            weekly_full.tail(8),
-            use_container_width=True,
-            hide_index=True
-        )
+        st.dataframe(weekly_full.tail(8), use_container_width=True, hide_index=True)
 
     else:
         st.info("Noch nicht genug Nutrition-, Activity- oder Ziel-Daten vorhanden.")
 
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_charts:
-    with st.container(border=True):
-        st.subheader("📉 Körperanalyse Charts")
 
-    daten_plot = format_datum(daten)
+    heute_norm = pd.Timestamp.today().normalize()
 
-    fig_gewicht = chart_karte(
-        daten_plot,
-        "Datum_Anzeige",
-        "Gewicht_kg",
-        "Gewicht",
-        "#3b82f6",
-        "kg"
-    )
+    # ── Körperanalyse ────────────────────────────────────────────────────────
+    st.markdown("### 🏋️ Körperanalyse")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.plotly_chart(
+            chart_linie(daten, "Datum", "Gewicht_kg", "Gewicht", "#3b82f6", "kg", zeige_rolling=True),
+            use_container_width=True
+        )
 
     if not caliper.empty:
-        caliper_plot = format_datum(caliper)
-
-        fig_kfa = chart_karte(
-            caliper_plot,
-            "Datum_Anzeige",
-            "KFA",
-            "Körperfett",
-            "#ef4444",
-            "%"
-        )
-
-        fig_ffm = chart_karte(
-            caliper_plot,
-            "Datum_Anzeige",
-            "FFM",
-            "Fettfreie Masse",
-            "#22c55e",
-            "kg"
-        )
-
-        fig_fettmasse = chart_karte(
-            caliper_plot,
-            "Datum_Anzeige",
-            "Fettmasse",
-            "Fettmasse",
-            "#f97316",
-            "kg"
-        )
-
-        c1, c2 = st.columns(2)
-
-        with c1:
-            st.plotly_chart(fig_gewicht, use_container_width=True)
-
         with c2:
-            st.plotly_chart(fig_kfa, use_container_width=True)
-
+            st.plotly_chart(
+                chart_linie(caliper, "Datum", "KFA", "Körperfett", "#ef4444", "%"),
+                use_container_width=True
+            )
         c3, c4 = st.columns(2)
-
         with c3:
-            st.plotly_chart(fig_ffm, use_container_width=True)
-
+            st.plotly_chart(
+                chart_linie(caliper, "Datum", "FFM", "Fettfreie Masse", "#22c55e", "kg"),
+                use_container_width=True
+            )
         with c4:
-            st.plotly_chart(fig_fettmasse, use_container_width=True)
-
+            st.plotly_chart(
+                chart_linie(caliper, "Datum", "Fettmasse", "Fettmasse", "#f97316", "kg"),
+                use_container_width=True
+            )
     else:
-        st.plotly_chart(fig_gewicht, use_container_width=True)
         st.info("Noch keine Caliper-Daten vorhanden.")
+
+    # ── Ernährung ────────────────────────────────────────────────────────────
+    if not nutrition_logs.empty:
+        nutr = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute_norm].copy()
+
+        if not nutr.empty:
+            st.markdown("### 🍽️ Ernährung")
+
+            # Kalorien gegessen vs. Ziel
+            nutr["Tag"] = nutr["Datum"].dt.normalize()
+            nutr_daily = nutr.groupby("Tag").agg({"Kalorien_gegessen": "sum"}).reset_index()
+            nutr_daily = nutr_daily.rename(columns={"Tag": "Datum"})
+
+            if not nutrition_targets.empty:
+                tgt = nutrition_targets.copy()
+                tgt["Tag"] = tgt["Datum"].dt.normalize()
+                tgt_daily = tgt.groupby("Tag").agg({"Kalorienziel": "mean"}).reset_index()
+                tgt_daily = tgt_daily.rename(columns={"Tag": "Datum"})
+                kal_plot = nutr_daily.merge(tgt_daily, on="Datum", how="left")
+            else:
+                kal_plot = nutr_daily
+
+            y_vals = kal_plot["Kalorien_gegessen"].dropna()
+            y_min_k = y_vals.min() * 0.93
+            y_max_k = y_vals.max() * 1.07
+            if "Kalorienziel" in kal_plot.columns:
+                tgt_vals = kal_plot["Kalorienziel"].dropna()
+                if not tgt_vals.empty:
+                    y_min_k = min(y_min_k, tgt_vals.min() * 0.93)
+                    y_max_k = max(y_max_k, tgt_vals.max() * 1.07)
+
+            fig_kal = go.Figure()
+            fig_kal.add_trace(go.Scatter(
+                x=kal_plot["Datum"], y=[y_min_k] * len(kal_plot),
+                mode="lines", line=dict(width=0),
+                showlegend=False, hoverinfo="skip"
+            ))
+            fig_kal.add_trace(go.Scatter(
+                x=kal_plot["Datum"], y=kal_plot["Kalorien_gegessen"],
+                mode="lines+markers", name="Gegessen",
+                line=dict(color="#3b82f6", width=2.5),
+                marker=dict(size=6, color="#3b82f6", line=dict(width=1.5, color="#0f172a")),
+                fill="tonexty", fillcolor="rgba(59,130,246,0.13)",
+                hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:.0f} kcal</b><extra></extra>"
+            ))
+            if "Kalorienziel" in kal_plot.columns:
+                fig_kal.add_trace(go.Scatter(
+                    x=kal_plot["Datum"], y=kal_plot["Kalorienziel"],
+                    mode="lines", name="Ziel",
+                    line=dict(color="#f59e0b", width=2, dash="dot"),
+                    hovertemplate="%{x|%d.%m.%Y}<br><b>Ziel: %{y:.0f} kcal</b><extra></extra>"
+                ))
+            fig_kal.update_layout(
+                **LAYOUT_BASE,
+                title=dict(text="Kalorien vs. Ziel", font=dict(size=15, color="#3b82f6"), x=0.01),
+                legend=dict(orientation="h", y=1.18, x=0, font=dict(size=11)),
+                xaxis=XAXIS_STYLE,
+                yaxis=dict(**YAXIS_STYLE, title="kcal", range=[y_min_k, y_max_k])
+            )
+            st.plotly_chart(fig_kal, use_container_width=True)
+
+            # Makros täglich — gestapeltes Balkendiagramm
+            nutr["Tag"] = nutr["Datum"].dt.normalize()
+            makro_daily = nutr.groupby("Tag").agg({
+                "Protein_gegessen": "sum",
+                "Fett_gegessen": "sum",
+                "Carbs_gegessen": "sum"
+            }).reset_index().rename(columns={"Tag": "Datum"})
+
+            fig_makro = go.Figure()
+            fig_makro.add_trace(go.Bar(
+                x=makro_daily["Datum"], y=makro_daily["Protein_gegessen"],
+                name="Protein", marker_color="#22c55e",
+                hovertemplate="%{x|%d.%m.%Y}<br>Protein: <b>%{y:.0f} g</b><extra></extra>"
+            ))
+            fig_makro.add_trace(go.Bar(
+                x=makro_daily["Datum"], y=makro_daily["Fett_gegessen"],
+                name="Fett", marker_color="#f97316",
+                hovertemplate="%{x|%d.%m.%Y}<br>Fett: <b>%{y:.0f} g</b><extra></extra>"
+            ))
+            fig_makro.add_trace(go.Bar(
+                x=makro_daily["Datum"], y=makro_daily["Carbs_gegessen"],
+                name="Carbs", marker_color="#a855f7",
+                hovertemplate="%{x|%d.%m.%Y}<br>Carbs: <b>%{y:.0f} g</b><extra></extra>"
+            ))
+            fig_makro.update_layout(
+                **LAYOUT_BASE,
+                barmode="stack",
+                title=dict(text="Makros täglich", font=dict(size=15, color="#e5e7eb"), x=0.01),
+                legend=dict(orientation="h", y=1.18, x=0, font=dict(size=11)),
+                xaxis=XAXIS_STYLE,
+                yaxis=dict(**YAXIS_STYLE, title="g")
+            )
+            st.plotly_chart(fig_makro, use_container_width=True)
+
+    # ── Kalorienbilanz ───────────────────────────────────────────────────────
+    if not nutrition_logs.empty and not activity_logs.empty:
+        nutr_b = nutrition_logs[nutrition_logs["Datum"].dt.normalize() < heute_norm].copy()
+        act_b = activity_logs[
+            (activity_logs["Datum"].dt.normalize() < heute_norm) &
+            (activity_logs["Gesamtverbrauch"] > 0)
+        ].copy()
+
+        if not nutr_b.empty and not act_b.empty:
+            nutr_b["Tag"] = nutr_b["Datum"].dt.normalize()
+            act_b["Tag"] = act_b["Datum"].dt.normalize()
+
+            nd = nutr_b.groupby("Tag")["Kalorien_gegessen"].sum().reset_index()
+            ad = act_b.groupby("Tag")["Gesamtverbrauch"].mean().reset_index()
+            bilanz_df = nd.merge(ad, on="Tag", how="inner")
+            bilanz_df["Bilanz"] = bilanz_df["Kalorien_gegessen"] - bilanz_df["Gesamtverbrauch"]
+            bilanz_df = bilanz_df.rename(columns={"Tag": "Datum"})
+
+            if not bilanz_df.empty:
+                st.markdown("### ⚖️ Kalorienbilanz")
+
+                farben = ["#22c55e" if v <= 0 else "#ef4444" for v in bilanz_df["Bilanz"]]
+                y_abs = bilanz_df["Bilanz"].abs().max() * 1.15
+
+                fig_bilanz = go.Figure()
+                fig_bilanz.add_trace(go.Bar(
+                    x=bilanz_df["Datum"], y=bilanz_df["Bilanz"],
+                    marker_color=farben,
+                    hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:+.0f} kcal</b><extra></extra>"
+                ))
+                fig_bilanz.add_hline(y=0, line_color="#475569", line_width=1.5)
+                fig_bilanz.update_layout(
+                    **LAYOUT_BASE,
+                    height=260,
+                    title=dict(
+                        text="Kalorienbilanz (Gegessen − Verbrauch)",
+                        font=dict(size=15, color="#e5e7eb"), x=0.01
+                    ),
+                    showlegend=False,
+                    xaxis=XAXIS_STYLE,
+                    yaxis=dict(
+                        **YAXIS_STYLE,
+                        title="kcal",
+                        zeroline=True,
+                        zerolinecolor="#475569",
+                        range=[-y_abs, y_abs]
+                    )
+                )
+                st.plotly_chart(fig_bilanz, use_container_width=True)
