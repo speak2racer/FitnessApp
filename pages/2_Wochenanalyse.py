@@ -427,9 +427,21 @@ with tab_charts:
             if not bilanz_df.empty:
                 st.markdown("### ⚖️ Kalorienbilanz")
 
-                def bilanz_chart(df, col, titel):
-                    farben = ["#22c55e" if v <= 0 else "#ef4444" for v in df[col]]
+                TOLERANZ = 0.10  # ±10 % = grün
+
+                def bilanz_chart(df, col, titel, referenz_col):
+                    def farbe(bilanz, ref):
+                        if pd.isna(ref) or ref == 0:
+                            return "#22c55e" if bilanz <= 0 else "#ef4444"
+                        return "#22c55e" if abs(bilanz) / abs(ref) <= TOLERANZ else "#ef4444"
+
+                    farben = [
+                        farbe(b, r)
+                        for b, r in zip(df[col], df.get(referenz_col, [None] * len(df)))
+                    ]
                     y_abs = df[col].abs().max() * 1.15
+                    tol_val = (df[referenz_col] * TOLERANZ).mean() if referenz_col in df.columns else None
+
                     fig = go.Figure()
                     fig.add_trace(go.Bar(
                         x=df["Datum"], y=df[col],
@@ -437,6 +449,15 @@ with tab_charts:
                         hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:+.0f} kcal</b><extra></extra>"
                     ))
                     fig.add_hline(y=0, line_color="#475569", line_width=1.5)
+                    if tol_val:
+                        fig.add_hrect(
+                            y0=-tol_val, y1=tol_val,
+                            fillcolor="rgba(34,197,94,0.07)",
+                            line_width=0,
+                            annotation_text="±10%",
+                            annotation_position="top right",
+                            annotation_font=dict(size=10, color="#22c55e")
+                        )
                     fig.update_layout(
                         **{**LAYOUT_BASE, "height": 260},
                         title=dict(text=titel, font=dict(size=15, color="#e5e7eb"), x=0.01),
@@ -454,16 +475,16 @@ with tab_charts:
                     bc1, bc2 = st.columns(2)
                     with bc1:
                         st.plotly_chart(
-                            bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Gegessen − Verbrauch"),
+                            bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Gegessen − Verbrauch", "Gesamtverbrauch"),
                             use_container_width=True
                         )
                     with bc2:
                         st.plotly_chart(
-                            bilanz_chart(bilanz_df, "Bilanz_Ziel", "Gegessen − Ziel"),
+                            bilanz_chart(bilanz_df, "Bilanz_Ziel", "Gegessen − Ziel", "Kalorienziel"),
                             use_container_width=True
                         )
                 else:
                     st.plotly_chart(
-                        bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)"),
+                        bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)", "Gesamtverbrauch"),
                         use_container_width=True
                     )
