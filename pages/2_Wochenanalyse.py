@@ -312,59 +312,6 @@ with tab_charts:
         if not nutr.empty:
             st.markdown("### 🍽️ Ernährung")
 
-            # Kalorien gegessen vs. Ziel
-            nutr["Tag"] = nutr["Datum"].dt.normalize()
-            nutr_daily = nutr.groupby("Tag").agg({"Kalorien_gegessen": "sum"}).reset_index()
-            nutr_daily = nutr_daily.rename(columns={"Tag": "Datum"})
-
-            if not nutrition_targets.empty:
-                tgt = nutrition_targets.copy()
-                tgt["Tag"] = tgt["Datum"].dt.normalize()
-                tgt_daily = tgt.groupby("Tag").agg({"Kalorienziel": "mean"}).reset_index()
-                tgt_daily = tgt_daily.rename(columns={"Tag": "Datum"})
-                kal_plot = nutr_daily.merge(tgt_daily, on="Datum", how="left")
-            else:
-                kal_plot = nutr_daily
-
-            y_vals = kal_plot["Kalorien_gegessen"].dropna()
-            y_min_k = y_vals.min() * 0.93
-            y_max_k = y_vals.max() * 1.07
-            if "Kalorienziel" in kal_plot.columns:
-                tgt_vals = kal_plot["Kalorienziel"].dropna()
-                if not tgt_vals.empty:
-                    y_min_k = min(y_min_k, tgt_vals.min() * 0.93)
-                    y_max_k = max(y_max_k, tgt_vals.max() * 1.07)
-
-            fig_kal = go.Figure()
-            fig_kal.add_trace(go.Scatter(
-                x=kal_plot["Datum"], y=[y_min_k] * len(kal_plot),
-                mode="lines", line=dict(width=0),
-                showlegend=False, hoverinfo="skip"
-            ))
-            fig_kal.add_trace(go.Scatter(
-                x=kal_plot["Datum"], y=kal_plot["Kalorien_gegessen"],
-                mode="lines+markers", name="Gegessen",
-                line=dict(color="#3b82f6", width=2.5),
-                marker=dict(size=6, color="#3b82f6", line=dict(width=1.5, color="#0f172a")),
-                fill="tonexty", fillcolor="rgba(59,130,246,0.13)",
-                hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:.0f} kcal</b><extra></extra>"
-            ))
-            if "Kalorienziel" in kal_plot.columns:
-                fig_kal.add_trace(go.Scatter(
-                    x=kal_plot["Datum"], y=kal_plot["Kalorienziel"],
-                    mode="lines", name="Ziel",
-                    line=dict(color="#f59e0b", width=2, dash="dot"),
-                    hovertemplate="%{x|%d.%m.%Y}<br><b>Ziel: %{y:.0f} kcal</b><extra></extra>"
-                ))
-            fig_kal.update_layout(
-                **LAYOUT_BASE,
-                title=dict(text="Kalorien vs. Ziel", font=dict(size=15, color="#3b82f6"), x=0.01),
-                legend=dict(orientation="h", y=1.18, x=0, font=dict(size=11)),
-                xaxis=XAXIS_STYLE,
-                yaxis=dict(**YAXIS_STYLE, title="kcal", range=[y_min_k, y_max_k])
-            )
-            st.plotly_chart(fig_kal, use_container_width=True)
-
             # Makros täglich — gestapeltes Balkendiagramm
             nutr["Tag"] = nutr["Datum"].dt.normalize()
             makro_daily = nutr.groupby("Tag").agg({
@@ -427,21 +374,20 @@ with tab_charts:
             if not bilanz_df.empty:
                 st.markdown("### ⚖️ Kalorienbilanz")
 
-                TOLERANZ = 0.10  # ±10 % = grün
+                TOLERANZ = 0.10  # ±10 % = grün (nur für Ziel-Chart)
 
-                def bilanz_chart(df, col, titel, referenz_col):
-                    def farbe(bilanz, ref):
-                        if pd.isna(ref) or ref == 0:
-                            return "#22c55e" if bilanz <= 0 else "#ef4444"
-                        return "#22c55e" if abs(bilanz) / abs(ref) <= TOLERANZ else "#ef4444"
+                def bilanz_bar(df, col, titel, mit_toleranz=False, referenz_col=None):
+                    if mit_toleranz and referenz_col and referenz_col in df.columns:
+                        farben = [
+                            "#22c55e" if (not pd.isna(r) and r != 0 and abs(b) / abs(r) <= TOLERANZ) else "#ef4444"
+                            for b, r in zip(df[col], df[referenz_col])
+                        ]
+                        tol_val = (df[referenz_col] * TOLERANZ).mean()
+                    else:
+                        farben = ["#22c55e" if v <= 0 else "#ef4444" for v in df[col]]
+                        tol_val = None
 
-                    farben = [
-                        farbe(b, r)
-                        for b, r in zip(df[col], df.get(referenz_col, [None] * len(df)))
-                    ]
                     y_abs = df[col].abs().max() * 1.15
-                    tol_val = (df[referenz_col] * TOLERANZ).mean() if referenz_col in df.columns else None
-
                     fig = go.Figure()
                     fig.add_trace(go.Bar(
                         x=df["Datum"], y=df[col],
@@ -452,10 +398,8 @@ with tab_charts:
                     if tol_val:
                         fig.add_hrect(
                             y0=-tol_val, y1=tol_val,
-                            fillcolor="rgba(34,197,94,0.07)",
-                            line_width=0,
-                            annotation_text="±10%",
-                            annotation_position="top right",
+                            fillcolor="rgba(34,197,94,0.07)", line_width=0,
+                            annotation_text="±10%", annotation_position="top right",
                             annotation_font=dict(size=10, color="#22c55e")
                         )
                     fig.update_layout(
@@ -475,16 +419,17 @@ with tab_charts:
                     bc1, bc2 = st.columns(2)
                     with bc1:
                         st.plotly_chart(
-                            bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Gegessen − Verbrauch", "Gesamtverbrauch"),
+                            bilanz_bar(bilanz_df, "Bilanz_Verbrauch", "Gegessen − Verbrauch"),
                             use_container_width=True
                         )
                     with bc2:
                         st.plotly_chart(
-                            bilanz_chart(bilanz_df, "Bilanz_Ziel", "Gegessen − Ziel", "Kalorienziel"),
+                            bilanz_bar(bilanz_df, "Bilanz_Ziel", "Gegessen − Ziel",
+                                       mit_toleranz=True, referenz_col="Kalorienziel"),
                             use_container_width=True
                         )
                 else:
                     st.plotly_chart(
-                        bilanz_chart(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)", "Gesamtverbrauch"),
+                        bilanz_bar(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)"),
                         use_container_width=True
                     )
