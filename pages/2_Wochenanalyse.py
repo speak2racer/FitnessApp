@@ -431,8 +431,7 @@ with tab_charts:
                 ))
                 fig_bilanz.add_hline(y=0, line_color="#475569", line_width=1.5)
                 fig_bilanz.update_layout(
-                    **LAYOUT_BASE,
-                    height=260,
+                    **{**LAYOUT_BASE, "height": 260},
                     title=dict(
                         text="Kalorienbilanz (Gegessen − Verbrauch)",
                         font=dict(size=15, color="#e5e7eb"), x=0.01
