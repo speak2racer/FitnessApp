@@ -72,13 +72,12 @@ with st.container(border=True):
 with st.container(border=True):
     st.subheader("📈 Tagesziel")
 
-    m1, m2, m3, m4, m5 = st.columns(5)
+    m1, m2, m3, m4 = st.columns(4)
 
     m1.metric("Kalorien", f"{makros['kalorien']} kcal")
     m2.metric("Eiweiß", f"{makros['eiweiss_g']} g")
     m3.metric("Fett", f"{makros['fett_g']} g")
     m4.metric("Carbs", f"{makros['kohlenhydrate_g']} g")
-    m5.metric("Carb-Anteil", f"{makros['carb_anteil']}%")
 
 with st.container(border=True):
     st.subheader("🍽️ Mahlzeiten")
@@ -133,7 +132,6 @@ try:
         gewicht_kg,
         ziel,
         faktor,
-        makros["carb_anteil"]
     )
 
     speichere_nutrition_target(
@@ -143,7 +141,6 @@ try:
         makros["fett_g"],
         makros["kohlenhydrate_g"],
         faktor,
-        makros["carb_anteil"]
     )
 
     st.success("Tagesziel wurde automatisch in Supabase gespeichert.")

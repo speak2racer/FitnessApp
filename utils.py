@@ -52,7 +52,6 @@ def lade_einstellungen():
         "gewicht": 90.0,
         "ziel": "Erhalt",
         "faktor": 15.0,
-        "carb_anteil": 40,
         "alter": 40,
         "brust": 10.0,
         "bauch": 20.0,
@@ -72,14 +71,13 @@ def lade_einstellungen():
                 "apikey": SUPABASE_ANON_KEY,
                 "Authorization": f"Bearer {SUPABASE_ANON_KEY}"
             },
-            params={"select": "faktor,carb_anteil", "order": "datum.desc", "limit": "1"}
+            params={"select": "faktor", "order": "datum.desc", "limit": "1"}
         )
         response.raise_for_status()
         daten = response.json()
         if daten:
             faktor = float(daten[0]["faktor"])
             standard["faktor"] = faktor
-            standard["carb_anteil"] = int(daten[0]["carb_anteil"])
             # Ziel aus Faktor ableiten
             if faktor <= 13.5:
                 standard["ziel"] = "Diät"
@@ -144,8 +142,7 @@ def lade_nutrition_targets(ab_datum=None):
                     "eiweiss": "Eiweiss_g",
                     "fett": "Fett_g",
                     "kohlenhydrate": "Kohlenhydrate_g",
-                    "faktor": "Faktor",
-                    "carb_anteil": "Carb_Anteil"
+                    "faktor": "Faktor"
                 }
             )
 
@@ -163,7 +160,6 @@ def speichere_einstellungen(
     gewicht,
     ziel,
     faktor,
-    carb_anteil,
     alter=None,
     brust=None,
     bauch=None,
@@ -175,7 +171,6 @@ def speichere_einstellungen(
         "gewicht": gewicht,
         "ziel": ziel,
         "faktor": faktor,
-        "carb_anteil": carb_anteil,
         "alter": alter if alter is not None else alte["alter"],
         "brust": brust if brust is not None else alte["brust"],
         "bauch": bauch if bauch is not None else alte["bauch"],
@@ -203,21 +198,12 @@ def berechne_makros(gewicht_kg, faktor, kfa):
     kohlenhydrate_kcal = max(0, kalorien - eiweiss_kcal - fett_kcal)
     kohlenhydrate_g = round(kohlenhydrate_kcal / 4)
 
-    # carb_anteil nur für Kompatibilität mit Supabase-Feld
-    if kfa >= 15:
-        carb_anteil = 40
-    elif kfa >= 12:
-        carb_anteil = 50
-    else:
-        carb_anteil = 60
-
     return {
         "gewicht_lbs": gewicht_lbs,
         "kalorien": kalorien,
         "eiweiss_g": eiweiss_g,
         "fett_g": fett_g,
         "kohlenhydrate_g": kohlenhydrate_g,
-        "carb_anteil": carb_anteil
     }
 
 
@@ -466,7 +452,6 @@ def speichere_nutrition_target(
     fett,
     kohlenhydrate,
     faktor,
-    carb_anteil
 ):
     url = f"{SUPABASE_URL}/rest/v1/nutrition_targets"
 
@@ -480,7 +465,6 @@ def speichere_nutrition_target(
         "fett": int(fett),
         "kohlenhydrate": int(kohlenhydrate),
         "faktor": float(faktor),
-        "carb_anteil": int(carb_anteil)
     }
 
     response = requests.post(

@@ -187,15 +187,13 @@ with tab_nutrition:
                     value=int(row["Kohlenhydrate_g"]), step=1, key="nt_carbs")
                 faktor_val = st.number_input("Faktor", min_value=8.0, max_value=25.0,
                     value=float(row["Faktor"]), step=0.25, format="%.2f", key="nt_faktor")
-                carb_anteil_val = st.number_input("Carb-Anteil (%)", min_value=0, max_value=100,
-                    value=int(row["Carb_Anteil"]) if "Carb_Anteil" in row else 40, step=5, key="nt_ca")
 
             b1, b2 = st.columns(2)
             with b1:
                 if st.button("💾 Speichern", use_container_width=True, key="nt_save"):
                     try:
                         speichere_nutrition_target(
-                            auswahl, kal_val, eiw_val, fett_val, carbs_val, faktor_val, carb_anteil_val
+                            auswahl, kal_val, eiw_val, fett_val, carbs_val, faktor_val
                         )
                         st.cache_data.clear()
                         st.success(f"Nutrition Target für {auswahl} aktualisiert.")

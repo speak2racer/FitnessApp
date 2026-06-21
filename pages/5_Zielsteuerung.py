@@ -207,7 +207,6 @@ with st.container(border=True):
                 st.session_state.faktor = round(empfohlener_faktor, 2)
                 speichere_einstellungen(
                     gewicht, ziel, round(empfohlener_faktor, 2),
-                    einstellungen["carb_anteil"]
                 )
                 st.success(f"Empfohlener Faktor gespeichert: {empfohlener_faktor:.2f}")
                 st.rerun()
@@ -224,7 +223,6 @@ if st.button("💾 Ziel speichern", use_container_width=True):
             gewicht,
             ziel,
             faktor,
-            einstellungen["carb_anteil"]
         )
 
         caliper = lade_caliper_daten()
@@ -238,7 +236,6 @@ if st.button("💾 Ziel speichern", use_container_width=True):
             makros["fett_g"],
             makros["kohlenhydrate_g"],
             faktor,
-            makros["carb_anteil"]
         )
 
         st.cache_data.clear()

@@ -92,7 +92,6 @@ if st.button("💾 Caliper speichern", use_container_width=True):
             gewicht_kg,
             einstellungen["ziel"],
             einstellungen["faktor"],
-            einstellungen["carb_anteil"],
             alter,
             brust,
             bauch,

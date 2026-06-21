@@ -33,7 +33,6 @@ data class NutritionTarget(
     val fett: Int,
     val kohlenhydrate: Int,
     val faktor: Double,
-    val carb_anteil: Int
 )
 
 class NutritionTargetSyncWorker(
@@ -88,12 +87,6 @@ class NutritionTargetSyncWorker(
         val kohlenhydrateKcal = maxOf(0.0, kalorien - eiweissKcal - fettKcal.toDouble())
         val kohlenhydrateG = round(kohlenhydrateKcal / 4).toInt()
 
-        val carbAnteil = when {
-            kfa >= 15 -> 40
-            kfa >= 12 -> 50
-            else -> 60
-        }
-
         return NutritionTarget(
             datum = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
             kalorien = kalorien,
@@ -101,7 +94,6 @@ class NutritionTargetSyncWorker(
             fett = fettG,
             kohlenhydrate = kohlenhydrateG,
             faktor = faktor,
-            carb_anteil = carbAnteil
         )
     }
 
