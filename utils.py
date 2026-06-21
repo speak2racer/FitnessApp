@@ -40,8 +40,8 @@ def zeige_refresh_button():
         st.divider()
         if "letzter_refresh" not in st.session_state:
             st.session_state.letzter_refresh = datetime.datetime.now()
-        st.caption(f"🕐 Stand: {st.session_state.letzter_refresh.strftime('%H:%M:%S')}")
-        if st.button("🔄 Daten aktualisieren", use_container_width=True):
+        st.caption(f"Stand: {st.session_state.letzter_refresh.strftime('%H:%M:%S')}")
+        if st.button(":material/refresh: Daten aktualisieren", use_container_width=True):
             st.cache_data.clear()
             st.session_state.letzter_refresh = datetime.datetime.now()
             st.rerun()

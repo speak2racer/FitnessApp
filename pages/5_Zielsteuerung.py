@@ -11,16 +11,13 @@ from utils import (
     lade_nutrition_logs,
     berechne_makros,
     speichere_nutrition_target,
-    lade_css,
     zeige_refresh_button,
-    STANDARD_FAKTOR
+    STANDARD_FAKTOR,
 )
 
-st.set_page_config(page_title="Zielsteuerung", layout="wide")
-lade_css()
 zeige_refresh_button()
 
-st.title("🎯 Zielsteuerung")
+st.title(":material/track_changes: Zielsteuerung")
 st.caption("Passe Ziel, Faktor und TDEE-basierte Empfehlungen zentral an.")
 
 einstellungen = lade_einstellungen()
@@ -203,7 +200,7 @@ with st.container(border=True):
                 f"**{empfohlener_faktor:.2f}**."
             )
 
-            if st.button("Empfohlenen Faktor übernehmen", use_container_width=True):
+            if st.button(":material/check: Empfohlenen Faktor übernehmen", use_container_width=True):
                 st.session_state.faktor = round(empfohlener_faktor, 2)
                 speichere_einstellungen(
                     gewicht, ziel, round(empfohlener_faktor, 2),
@@ -217,7 +214,7 @@ with st.container(border=True):
         st.info("Noch nicht genug Gewicht- oder Kaloriendaten vorhanden.")
 
 
-if st.button("💾 Ziel speichern", use_container_width=True):
+if st.button(":material/save: Ziel speichern", use_container_width=True):
     try:
         speichere_einstellungen(
             gewicht,

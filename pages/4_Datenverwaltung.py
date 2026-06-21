@@ -14,21 +14,20 @@ from utils import (
     speichere_caliper_supabase,
     speichere_nutrition_target,
     berechne_kfa,
-    lade_css,
-    zeige_refresh_button
+    zeige_refresh_button,
 )
 
-st.set_page_config(page_title="Datenverwaltung", layout="wide")
-lade_css()
 zeige_refresh_button()
 
-st.title("🗃️ Datenverwaltung")
+st.title(":material/edit_note: Datenverwaltung")
 
 tab_gewicht, tab_caliper, tab_nutrition = st.tabs([
-    "⚖️ Gewicht", "📏 Caliper", "🎯 Nutrition Targets"
+    ":material/scale: Gewicht",
+    ":material/straighten: Caliper",
+    ":material/track_changes: Nutrition Targets",
 ])
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ── Gewicht ───────────────────────────────────────────────────────────────────
 with tab_gewicht:
     daten = lade_tagesdaten()
 
@@ -39,7 +38,7 @@ with tab_gewicht:
         daten_sorted["Datum"] = daten_sorted["Datum"].dt.strftime("%Y-%m-%d")
 
         with st.container(border=True):
-            st.subheader("✏️ Eintrag bearbeiten")
+            st.subheader(":material/edit: Eintrag bearbeiten")
             auswahl = st.selectbox("Datum auswählen", daten_sorted["Datum"].tolist(), key="gew_auswahl")
             eintrag = daten_sorted[daten_sorted["Datum"] == auswahl].iloc[0]
 
@@ -54,7 +53,7 @@ with tab_gewicht:
 
             b1, b2 = st.columns(2)
             with b1:
-                if st.button("💾 Speichern", use_container_width=True, key="gew_save"):
+                if st.button(":material/save: Speichern", use_container_width=True, key="gew_save"):
                     try:
                         aktualisiere_supabase_gewicht(eintrag["Datum"], neues_gewicht)
                         st.cache_data.clear()
@@ -63,7 +62,7 @@ with tab_gewicht:
                     except Exception as e:
                         st.error(f"Fehler: {e}")
             with b2:
-                if st.button("❌ Löschen", use_container_width=True, key="gew_del"):
+                if st.button(":material/delete: Löschen", use_container_width=True, key="gew_del"):
                     try:
                         loesche_supabase_gewicht(eintrag["Datum"])
                         st.cache_data.clear()
@@ -73,16 +72,16 @@ with tab_gewicht:
                         st.error(f"Fehler: {e}")
 
         with st.container(border=True):
-            st.subheader("📋 Alle Einträge")
+            st.subheader(":material/table_rows: Alle Einträge")
             st.dataframe(
                 daten_sorted[["Datum", "Gewicht_kg"]].rename(columns={"Gewicht_kg": "Gewicht (kg)"}),
                 use_container_width=True, hide_index=True
             )
 
         with st.container(border=True):
-            st.subheader("⚠️ Alle Gewichtsdaten löschen")
+            st.subheader(":material/warning: Alle Gewichtsdaten löschen")
             st.warning("Dies löscht ALLE Gewichtsdaten aus Supabase unwiderruflich.")
-            if st.button("🔥 Alle löschen", use_container_width=True, key="gew_del_all"):
+            if st.button(":material/delete_forever: Alle löschen", use_container_width=True, key="gew_del_all"):
                 try:
                     loesche_alle_supabase_gewichte()
                     st.cache_data.clear()
@@ -91,7 +90,7 @@ with tab_gewicht:
                 except Exception as e:
                     st.error(f"Fehler: {e}")
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ── Caliper ───────────────────────────────────────────────────────────────────
 with tab_caliper:
     caliper = lade_caliper_daten()
 
@@ -102,7 +101,7 @@ with tab_caliper:
         caliper_sorted["Datum"] = caliper_sorted["Datum"].dt.strftime("%Y-%m-%d")
 
         with st.container(border=True):
-            st.subheader("✏️ Eintrag bearbeiten")
+            st.subheader(":material/edit: Eintrag bearbeiten")
             auswahl = st.selectbox("Datum auswählen", caliper_sorted["Datum"].tolist(), key="cal_auswahl")
             row = caliper_sorted[caliper_sorted["Datum"] == auswahl].iloc[0]
 
@@ -129,7 +128,7 @@ with tab_caliper:
 
             b1, b2 = st.columns(2)
             with b1:
-                if st.button("💾 Speichern", use_container_width=True, key="cal_save"):
+                if st.button(":material/save: Speichern", use_container_width=True, key="cal_save"):
                     try:
                         speichere_caliper_supabase(
                             auswahl, gewicht_val, alter_val, brust_val, bauch_val, ober_val,
@@ -142,7 +141,7 @@ with tab_caliper:
                     except Exception as e:
                         st.error(f"Fehler: {e}")
             with b2:
-                if st.button("❌ Löschen", use_container_width=True, key="cal_del"):
+                if st.button(":material/delete: Löschen", use_container_width=True, key="cal_del"):
                     try:
                         loesche_caliper_supabase(auswahl)
                         st.cache_data.clear()
@@ -152,14 +151,14 @@ with tab_caliper:
                         st.error(f"Fehler: {e}")
 
         with st.container(border=True):
-            st.subheader("📋 Alle Einträge")
+            st.subheader(":material/table_rows: Alle Einträge")
             anzeige_cols = ["Datum", "Gewicht_kg", "KFA", "FFM", "Fettmasse"]
             st.dataframe(
                 caliper_sorted[[c for c in anzeige_cols if c in caliper_sorted.columns]],
                 use_container_width=True, hide_index=True
             )
 
-# ══════════════════════════════════════════════════════════════════════════════
+# ── Nutrition Targets ─────────────────────────────────────────────────────────
 with tab_nutrition:
     targets = lade_nutrition_targets()
 
@@ -170,7 +169,7 @@ with tab_nutrition:
         targets_sorted["Datum"] = targets_sorted["Datum"].dt.strftime("%Y-%m-%d")
 
         with st.container(border=True):
-            st.subheader("✏️ Eintrag bearbeiten")
+            st.subheader(":material/edit: Eintrag bearbeiten")
             auswahl = st.selectbox("Datum auswählen", targets_sorted["Datum"].tolist(), key="nt_auswahl")
             row = targets_sorted[targets_sorted["Datum"] == auswahl].iloc[0]
 
@@ -190,18 +189,16 @@ with tab_nutrition:
 
             b1, b2 = st.columns(2)
             with b1:
-                if st.button("💾 Speichern", use_container_width=True, key="nt_save"):
+                if st.button(":material/save: Speichern", use_container_width=True, key="nt_save"):
                     try:
-                        speichere_nutrition_target(
-                            auswahl, kal_val, eiw_val, fett_val, carbs_val, faktor_val
-                        )
+                        speichere_nutrition_target(auswahl, kal_val, eiw_val, fett_val, carbs_val, faktor_val)
                         st.cache_data.clear()
                         st.success(f"Nutrition Target für {auswahl} aktualisiert.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Fehler: {e}")
             with b2:
-                if st.button("❌ Löschen", use_container_width=True, key="nt_del"):
+                if st.button(":material/delete: Löschen", use_container_width=True, key="nt_del"):
                     try:
                         loesche_nutrition_target(auswahl)
                         st.cache_data.clear()
@@ -211,7 +208,7 @@ with tab_nutrition:
                         st.error(f"Fehler: {e}")
 
         with st.container(border=True):
-            st.subheader("📋 Alle Einträge")
+            st.subheader(":material/table_rows: Alle Einträge")
             anzeige = ["Datum", "Kalorienziel", "Eiweiss_g", "Fett_g", "Kohlenhydrate_g", "Faktor"]
             st.dataframe(
                 targets_sorted[[c for c in anzeige if c in targets_sorted.columns]],

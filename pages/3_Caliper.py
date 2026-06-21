@@ -7,15 +7,12 @@ from utils import (
     berechne_kfa,
     lade_tagesdaten,
     speichere_caliper_supabase,
-    lade_css,
-    zeige_refresh_button
+    zeige_refresh_button,
 )
 
-st.set_page_config(page_title="Caliper", layout="wide")
-lade_css()
 zeige_refresh_button()
 
-st.title("📏 Caliper Messung")
+st.title(":material/straighten: Caliper Messung")
 st.caption("Speichert KFA, FFM und Fettmasse direkt in Supabase.")
 
 einstellungen = lade_einstellungen()
@@ -37,7 +34,7 @@ for key, value in {
         st.session_state[key] = value
 
 with st.container(border=True):
-    st.subheader("📝 Eingabe")
+    st.subheader(":material/edit: Eingabe")
 
     st.metric("Gewicht", f"{gewicht_kg:.1f} kg")
 
@@ -53,52 +50,29 @@ with st.container(border=True):
     with r2c2:
         oberschenkel = st.number_input("Oberschenkel mm", min_value=1.0, max_value=80.0, step=0.5, key="oberschenkel")
 
-kfa_daten = berechne_kfa(
-    gewicht_kg,
-    alter,
-    brust,
-    bauch,
-    oberschenkel
-)
+kfa_daten = berechne_kfa(gewicht_kg, alter, brust, bauch, oberschenkel)
 
 with st.container(border=True):
-    st.subheader("📊 Ergebnis")
+    st.subheader(":material/monitoring: Ergebnis")
 
     m1, m2, m3, m4 = st.columns(4)
-
     m1.metric("KFA", f"{kfa_daten['kfa']}%")
     m2.metric("FFM", f"{kfa_daten['ffm']} kg")
     m3.metric("Fettmasse", f"{kfa_daten['fettmasse']} kg")
     m4.metric("Faltensumme", f"{kfa_daten['falten_summe']:.1f} mm")
 
-if st.button("💾 Caliper speichern", use_container_width=True):
+if st.button(":material/save: Caliper speichern", use_container_width=True):
     heute = date.today().strftime("%Y-%m-%d")
-
     try:
         speichere_caliper_supabase(
-            heute,
-            gewicht_kg,
-            alter,
-            brust,
-            bauch,
-            oberschenkel,
-            kfa_daten["falten_summe"],
-            kfa_daten["kfa"],
-            kfa_daten["ffm"],
-            kfa_daten["fettmasse"]
+            heute, gewicht_kg, alter, brust, bauch, oberschenkel,
+            kfa_daten["falten_summe"], kfa_daten["kfa"],
+            kfa_daten["ffm"], kfa_daten["fettmasse"]
         )
-
         speichere_einstellungen(
-            gewicht_kg,
-            einstellungen["ziel"],
-            einstellungen["faktor"],
-            alter,
-            brust,
-            bauch,
-            oberschenkel
+            gewicht_kg, einstellungen["ziel"], einstellungen["faktor"],
+            alter, brust, bauch, oberschenkel
         )
-
         st.success("Caliper-Daten in Supabase gespeichert!")
-
     except Exception as e:
         st.error(f"Fehler beim Speichern: {e}")

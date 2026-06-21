@@ -12,15 +12,12 @@ from utils import (
     lade_nutrition_targets,
     lade_einstellungen,
     faktor_empfehlung,
-    lade_css,
-    zeige_refresh_button
+    zeige_refresh_button,
 )
 
-st.set_page_config(page_title="Wochenanalyse", layout="wide")
-lade_css()
 zeige_refresh_button()
 
-st.title("📈 Wochenanalyse")
+st.title(":material/bar_chart: Wochenanalyse")
 st.caption("Analysiere Gewicht, Ernährung, Aktivität und Körperanalyse.")
 
 heute = date.today()
@@ -131,7 +128,7 @@ wochenmittel = (
     wochen.groupby("Woche").agg({"Gewicht_kg": "mean"}).reset_index().round(2)
 )
 
-tab_uebersicht, tab_charts = st.tabs(["📋 Übersicht", "📈 Charts"])
+tab_uebersicht, tab_charts = st.tabs([":material/assignment: Übersicht", ":material/show_chart: Charts"])
 
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_uebersicht:
