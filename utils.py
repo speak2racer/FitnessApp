@@ -194,10 +194,7 @@ def berechne_makros(gewicht_kg, faktor, kfa):
     gewicht_lbs = round(gewicht_kg * 2.20462, 2)
     kalorien = round(gewicht_lbs * faktor)
 
-    # Protein auf Basis Magermasse (Helms: ~1g/lb FFM)
-    ffm_kg = gewicht_kg * (1 - kfa / 100)
-    ffm_lbs = ffm_kg * 2.20462
-    eiweiss_g = round(ffm_lbs)
+    eiweiss_g = round(gewicht_kg * 2)
     eiweiss_kcal = eiweiss_g * 4
 
     rest_kalorien = kalorien - eiweiss_kcal

@@ -79,10 +79,7 @@ class NutritionTargetSyncWorker(
         val gewichtLbs = gewichtKg * 2.20462
         val kalorien = round(gewichtLbs * faktor).toInt()
 
-        // Protein auf Basis Magermasse (Helms: ~1g/lb FFM)
-        val ffmKg = gewichtKg * (1 - kfa / 100.0)
-        val ffmLbs = ffmKg * 2.20462
-        val eiweissG = round(ffmLbs).toInt()
+        val eiweissG = round(gewichtKg * 2).toInt()
         val eiweissKcal = eiweissG * 4
         val restKalorien = kalorien - eiweissKcal
 
