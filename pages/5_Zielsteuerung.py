@@ -89,6 +89,19 @@ with st.container(border=True):
 with st.container(border=True):
     st.subheader("🧮 Empfehlung aus echtem TDEE")
 
+    # Anpassbare Offsets
+    off1, off2 = st.columns(2)
+    diaet_offset = off1.number_input(
+        "Diät-Offset (Faktor unter Erhalt)", min_value=0.5, max_value=5.0,
+        value=2.0, step=0.25,
+        help="Wie viele Faktor-Punkte unter dem Erhalt-Faktor für Diät"
+    )
+    aufbau_offset = off2.number_input(
+        "Aufbau-Offset (Faktor über Erhalt)", min_value=0.25, max_value=3.0,
+        value=1.0, step=0.25,
+        help="Wie viele Faktor-Punkte über dem Erhalt-Faktor für Aufbau"
+    )
+
     if not daten.empty and not nutrition_logs.empty:
         heute_norm = pd.Timestamp.today().normalize()
 
@@ -103,18 +116,13 @@ with st.container(border=True):
 
         gewicht_weekly = (
             gewicht_woche.groupby("Woche")["Gewicht_kg"]
-            .mean()
-            .reset_index()
-            .round(2)
+            .mean().reset_index().round(2)
         )
 
-        # Nur Wochen mit mindestens 3 Tagen Kaloriendaten
         kcal_counts = kcal_woche.groupby("Woche")["Kalorien_gegessen"].count()
         kcal_weekly = (
             kcal_woche.groupby("Woche")["Kalorien_gegessen"]
-            .mean()
-            .reset_index()
-            .round(0)
+            .mean().reset_index().round(0)
         )
         kcal_weekly = kcal_weekly[kcal_weekly["Woche"].isin(
             kcal_counts[kcal_counts >= 3].index
@@ -122,44 +130,66 @@ with st.container(border=True):
 
         tdee_data = (
             gewicht_weekly.merge(kcal_weekly, on="Woche", how="inner")
-            .sort_values("Woche")
+            .sort_values("Woche").reset_index(drop=True)
         )
-
-        with st.expander("🔍 Debug: verfügbare Wochendaten", expanded=False):
-            st.write(f"Gewichts-Wochen: {list(gewicht_weekly['Woche'])}")
-            st.write(f"Kalorien-Wochen (≥3 Tage): {list(kcal_weekly['Woche'])}")
-            st.write(f"Übereinstimmende Wochen: {list(tdee_data['Woche'])}")
-
         tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
-        tdee_data = tdee_data.sort_values("Woche").reset_index(drop=True)
 
-        paar = None
-        for i in range(len(tdee_data) - 1, 0, -1):
-            diff = tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]
+        # Alle aufeinanderfolgenden Paare sammeln (bis zu 4 Wochen zurück)
+        paare = []
+        for i in range(1, len(tdee_data)):
+            diff = tdee_data.loc[i, "Periode"] - tdee_data.loc[i - 1, "Periode"]
             diff_n = diff.n if hasattr(diff, "n") else int(diff)
             if diff_n == 1:
-                paar = (tdee_data.iloc[i-1], tdee_data.iloc[i])
-                break
+                vor = tdee_data.iloc[i - 1]
+                akt = tdee_data.iloc[i]
+                delta_kg = akt["Gewicht_kg"] - vor["Gewicht_kg"]
+                kcal_delta = (delta_kg * 7700) / 7
+                tdee_est = akt["Kalorien_gegessen"] - kcal_delta
+                paare.append({
+                    "Woche": f"{vor['Woche']} → {akt['Woche']}",
+                    "Δ Gewicht": delta_kg,
+                    "TDEE-Schätzung": tdee_est,
+                    "Gewicht_kg": akt["Gewicht_kg"],
+                })
 
-        if paar:
-            vorherige, aktuelle = paar
+        # Nur letzte 4 Paare verwenden
+        paare = paare[-4:]
 
-            gewicht_delta = aktuelle["Gewicht_kg"] - vorherige["Gewicht_kg"]
-            kcal_delta_pro_tag = (gewicht_delta * 7700) / 7
-            echter_tdee = aktuelle["Kalorien_gegessen"] - kcal_delta_pro_tag
-
-            gewicht_lbs_tdee = aktuelle["Gewicht_kg"] * 2.20462
+        if paare:
+            import numpy as np
+            echter_tdee = float(np.mean([p["TDEE-Schätzung"] for p in paare]))
+            max_delta = max(abs(p["Δ Gewicht"]) for p in paare)
+            letztes_gewicht = paare[-1]["Gewicht_kg"]
+            gewicht_lbs_tdee = letztes_gewicht * 2.20462
             erhalt_faktor = echter_tdee / gewicht_lbs_tdee
+            diaet_faktor = erhalt_faktor - diaet_offset
+            aufbau_faktor = erhalt_faktor + aufbau_offset
 
-            diaet_faktor = erhalt_faktor - 2
-            aufbau_faktor = erhalt_faktor + 1
+            # Konfidenzwarnung
+            if max_delta > 1.0:
+                st.warning(
+                    f"⚠️ Hohe Gewichtsschwankung ({max_delta:+.2f} kg in einer Woche) — "
+                    "Schätzung kann durch Wassereinlagerungen verfälscht sein. "
+                    "Mehr Wochen Daten erhöhen die Genauigkeit."
+                )
+            elif len(paare) == 1:
+                st.info("ℹ️ Nur ein Wochenpaar — mehr Daten erhöhen die Genauigkeit.")
+            else:
+                st.success(f"✅ TDEE aus {len(paare)} Wochenpaaren gemittelt.")
 
             e1, e2, e3, e4 = st.columns(4)
-
-            e1.metric("Echter TDEE", f"{echter_tdee:.0f} kcal")
+            e1.metric("Echter TDEE (Ø)", f"{echter_tdee:.0f} kcal")
             e2.metric("Erhalt-Faktor", f"{erhalt_faktor:.2f}")
             e3.metric("Diät-Faktor", f"{diaet_faktor:.2f}")
             e4.metric("Aufbau-Faktor", f"{aufbau_faktor:.2f}")
+
+            with st.expander("📋 Einzelne Wochenpaare", expanded=False):
+                st.dataframe(
+                    pd.DataFrame(paare)[["Woche", "Δ Gewicht", "TDEE-Schätzung"]]
+                    .rename(columns={"Δ Gewicht": "Δ Gewicht (kg)", "TDEE-Schätzung": "TDEE (kcal)"})
+                    .round({"Δ Gewicht (kg)": 2, "TDEE (kcal)": 0}),
+                    use_container_width=True, hide_index=True
+                )
 
             if ziel == "Diät":
                 empfohlener_faktor = diaet_faktor
@@ -173,23 +203,13 @@ with st.container(border=True):
                 f"**{empfohlener_faktor:.2f}**."
             )
 
-            if st.button(
-                "Empfohlenen Faktor übernehmen",
-                use_container_width=True
-            ):
+            if st.button("Empfohlenen Faktor übernehmen", use_container_width=True):
                 st.session_state.faktor = round(empfohlener_faktor, 2)
-
                 speichere_einstellungen(
-                    gewicht,
-                    ziel,
-                    round(empfohlener_faktor, 2),
+                    gewicht, ziel, round(empfohlener_faktor, 2),
                     einstellungen["carb_anteil"]
                 )
-
-                st.success(
-                    f"Empfohlener Faktor gespeichert: {empfohlener_faktor:.2f}"
-                )
-
+                st.success(f"Empfohlener Faktor gespeichert: {empfohlener_faktor:.2f}")
                 st.rerun()
 
         else:
