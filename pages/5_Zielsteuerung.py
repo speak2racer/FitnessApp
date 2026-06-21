@@ -108,7 +108,7 @@ with st.container(border=True):
             .round(2)
         )
 
-        # Nur Wochen mit mindestens 5 Tagen Kaloriendaten
+        # Nur Wochen mit mindestens 3 Tagen Kaloriendaten
         kcal_counts = kcal_woche.groupby("Woche")["Kalorien_gegessen"].count()
         kcal_weekly = (
             kcal_woche.groupby("Woche")["Kalorien_gegessen"]
@@ -117,7 +117,7 @@ with st.container(border=True):
             .round(0)
         )
         kcal_weekly = kcal_weekly[kcal_weekly["Woche"].isin(
-            kcal_counts[kcal_counts >= 5].index
+            kcal_counts[kcal_counts >= 3].index
         )]
 
         tdee_data = (
@@ -125,12 +125,19 @@ with st.container(border=True):
             .sort_values("Woche")
         )
 
+        with st.expander("🔍 Debug: verfügbare Wochendaten", expanded=False):
+            st.write(f"Gewichts-Wochen: {list(gewicht_weekly['Woche'])}")
+            st.write(f"Kalorien-Wochen (≥3 Tage): {list(kcal_weekly['Woche'])}")
+            st.write(f"Übereinstimmende Wochen: {list(tdee_data['Woche'])}")
+
         tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
         tdee_data = tdee_data.sort_values("Woche").reset_index(drop=True)
 
         paar = None
         for i in range(len(tdee_data) - 1, 0, -1):
-            if (tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]) == 1:
+            diff = tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]
+            diff_n = diff.n if hasattr(diff, "n") else int(diff)
+            if diff_n == 1:
                 paar = (tdee_data.iloc[i-1], tdee_data.iloc[i])
                 break
 
