@@ -81,26 +81,17 @@ class NutritionTargetSyncWorker(
 
         val eiweissG = round(gewichtKg * 2).toInt()
         val eiweissKcal = eiweissG * 4
-        val restKalorien = kalorien - eiweissKcal
+
+        val fettG = round(gewichtKg * 0.7).toInt()
+        val fettKcal = fettG * 9
+
+        val kohlenhydrateKcal = maxOf(0.0, kalorien - eiweissKcal - fettKcal.toDouble())
+        val kohlenhydrateG = round(kohlenhydrateKcal / 4).toInt()
 
         val carbAnteil = when {
             kfa >= 15 -> 40
             kfa >= 12 -> 50
             else -> 60
-        }
-
-        var kohlenhydrateKcal = restKalorien * (carbAnteil / 100.0)
-        var kohlenhydrateG = round(kohlenhydrateKcal / 4).toInt()
-        var fettKcal = restKalorien - kohlenhydrateKcal
-        var fettG = round(fettKcal / 9).toInt()
-
-        // Mindest-Fett sicherstellen (Helms: ~0.35g/lb Gesamtgewicht)
-        val minFettG = round(gewichtLbs * 0.35).toInt()
-        if (fettG < minFettG) {
-            fettG = minFettG
-            fettKcal = fettG * 9.0
-            kohlenhydrateKcal = restKalorien - fettKcal
-            kohlenhydrateG = maxOf(0, round(kohlenhydrateKcal / 4).toInt())
         }
 
         return NutritionTarget(

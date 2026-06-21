@@ -197,28 +197,19 @@ def berechne_makros(gewicht_kg, faktor, kfa):
     eiweiss_g = round(gewicht_kg * 2)
     eiweiss_kcal = eiweiss_g * 4
 
-    rest_kalorien = kalorien - eiweiss_kcal
+    fett_g = round(gewicht_kg * 0.7)
+    fett_kcal = fett_g * 9
 
+    kohlenhydrate_kcal = max(0, kalorien - eiweiss_kcal - fett_kcal)
+    kohlenhydrate_g = round(kohlenhydrate_kcal / 4)
+
+    # carb_anteil nur für Kompatibilität mit Supabase-Feld
     if kfa >= 15:
         carb_anteil = 40
     elif kfa >= 12:
         carb_anteil = 50
     else:
         carb_anteil = 60
-
-    kohlenhydrate_kcal = rest_kalorien * (carb_anteil / 100)
-    kohlenhydrate_g = round(kohlenhydrate_kcal / 4)
-
-    fett_kcal = rest_kalorien - kohlenhydrate_kcal
-    fett_g = round(fett_kcal / 9)
-
-    # Mindest-Fett sicherstellen (Helms: ~0.35g/lb Gesamtgewicht für Hormongesundheit)
-    min_fett_g = round(gewicht_lbs * 0.35)
-    if fett_g < min_fett_g:
-        fett_g = min_fett_g
-        fett_kcal = fett_g * 9
-        kohlenhydrate_kcal = rest_kalorien - fett_kcal
-        kohlenhydrate_g = max(0, round(kohlenhydrate_kcal / 4))
 
     return {
         "gewicht_lbs": gewicht_lbs,
