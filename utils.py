@@ -53,6 +53,7 @@ def lade_einstellungen():
         "ziel": "Erhalt",
         "faktor": 15.0,
         "alter": 40,
+        "groesse": 180,
         "brust": 10.0,
         "bauch": 20.0,
         "oberschenkel": 15.0
@@ -161,6 +162,7 @@ def speichere_einstellungen(
     ziel,
     faktor,
     alter=None,
+    groesse=None,
     brust=None,
     bauch=None,
     oberschenkel=None
@@ -172,6 +174,7 @@ def speichere_einstellungen(
         "ziel": ziel,
         "faktor": faktor,
         "alter": alter if alter is not None else alte["alter"],
+        "groesse": groesse if groesse is not None else alte.get("groesse", 180),
         "brust": brust if brust is not None else alte["brust"],
         "bauch": bauch if bauch is not None else alte["bauch"],
         "oberschenkel": (
