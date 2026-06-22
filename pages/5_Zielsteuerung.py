@@ -252,9 +252,10 @@ with tab_aragon:
 
         lbm_aktuell = round(gewicht * (1 - kfa_aktuell / 100), 1)
 
-        s1c1, s1c2 = st.columns(2)
+        s1c1, s1c2, s1c3 = st.columns(3)
         s1c1.metric("Aktuelles Gewicht", f"{gewicht:.1f} kg")
         s1c2.metric("Aktueller KFA", f"{kfa_aktuell:.1f}%")
+        s1c3.metric("Aktuelle LBM", f"{lbm_aktuell:.1f} kg")
 
         st.divider()
 
