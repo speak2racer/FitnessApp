@@ -10,6 +10,7 @@ from utils import (
     lade_tagesdaten,
     lade_caliper_daten,
     zeige_refresh_button,
+    berechne_tdee_regression,
 )
 
 zeige_refresh_button()
@@ -198,42 +199,20 @@ with tab_woche:
         st.subheader(":material/calculate: Geschätzter TDEE")
 
         if not daten.empty and not nutrition_logs.empty:
-            gw = daten[daten["Datum"].dt.normalize() < heute].copy()
-            kw = nutrition_logs[
-                (nutrition_logs["Datum"].dt.normalize() < heute) &
-                (nutrition_logs["Kalorien_gegessen"] > 0)
-            ].copy()
-            gw["Woche"] = gw["Datum"].dt.to_period("W").astype(str)
-            kw["Woche"] = kw["Datum"].dt.to_period("W").astype(str)
-
-            g_weekly = gw.groupby("Woche")["Gewicht_kg"].mean().reset_index().round(2)
-            kcal_counts = kw.groupby("Woche")["Kalorien_gegessen"].count()
-            k_weekly = kw.groupby("Woche")["Kalorien_gegessen"].mean().reset_index().round(0)
-            k_weekly = k_weekly[k_weekly["Woche"].isin(kcal_counts[kcal_counts >= 3].index)]
-            tdee_data = g_weekly.merge(k_weekly, on="Woche").sort_values("Woche").reset_index(drop=True)
-            tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
-
-            paar = None
-            for i in range(len(tdee_data) - 1, 0, -1):
-                diff = tdee_data.loc[i, "Periode"] - tdee_data.loc[i-1, "Periode"]
-                diff_n = diff.n if hasattr(diff, "n") else int(diff)
-                if diff_n == 1:
-                    paar = (tdee_data.iloc[i-1], tdee_data.iloc[i])
-                    break
-
-            if paar:
-                vor, akt = paar
-                delta_kg = akt["Gewicht_kg"] - vor["Gewicht_kg"]
-                echter_tdee = akt["Kalorien_gegessen"] - (delta_kg * 7700 / 7)
-
+            tdee_result = berechne_tdee_regression(daten, nutrition_logs)
+            if tdee_result:
                 t1, t2, t3, t4 = st.columns(4)
-                t1.metric(f"Gewicht {akt['Woche']}", f"{akt['Gewicht_kg']:.2f} kg")
-                t2.metric(f"Gewicht {vor['Woche']}", f"{vor['Gewicht_kg']:.2f} kg")
-                t3.metric("Trend", f"{delta_kg:+.2f} kg/Woche")
-                t4.metric("Geschätzter TDEE", f"{echter_tdee:.0f} kcal")
-                st.caption("Berechnet aus zwei aufeinanderfolgenden Wochen mit je ≥3 Kalorieneinträgen.")
+                t1.metric("TDEE (Regression)", f"{tdee_result['tdee']} kcal")
+                t2.metric("Gewichtstrend", f"{tdee_result['trend_kg_woche']:+.2f} kg/Woche")
+                t3.metric("Ø Kalorien", f"{tdee_result['avg_kcal']} kcal")
+                t4.metric("Datenpunkte", f"{tdee_result['n_tage']} Tage")
+                konfidenz = "hoch" if tdee_result["r2"] >= 0.5 else "mittel" if tdee_result["r2"] >= 0.2 else "niedrig"
+                st.caption(
+                    f"Lineare Regression der letzten 8 Wochen · "
+                    f"R² = {tdee_result['r2']} · Konfidenz: {konfidenz}"
+                )
             else:
-                st.info("Mindestens zwei Wochen Daten nötig.")
+                st.info("Mindestens 7 Tage mit Gewicht + Kalorien nötig.")
         else:
             st.info("Noch nicht genug Daten vorhanden.")
 

@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
 from datetime import date
 
@@ -13,6 +12,7 @@ from utils import (
     berechne_makros,
     speichere_nutrition_target,
     zeige_refresh_button,
+    berechne_tdee_regression,
     STANDARD_FAKTOR,
 )
 
@@ -99,88 +99,30 @@ with tab_faktor:
         )
 
         if not daten.empty and not nutrition_logs.empty:
-            heute_norm = pd.Timestamp.today().normalize()
+            tdee_result = berechne_tdee_regression(daten, nutrition_logs)
 
-            gewicht_woche = daten[daten["Datum"].dt.normalize() < heute_norm].copy()
-            kcal_woche = nutrition_logs[
-                (nutrition_logs["Datum"].dt.normalize() < heute_norm) &
-                (nutrition_logs["Kalorien_gegessen"] > 0)
-            ].copy()
-
-            gewicht_woche["Woche"] = gewicht_woche["Datum"].dt.to_period("W").astype(str)
-            kcal_woche["Woche"] = kcal_woche["Datum"].dt.to_period("W").astype(str)
-
-            gewicht_weekly = (
-                gewicht_woche.groupby("Woche")["Gewicht_kg"]
-                .mean().reset_index().round(2)
-            )
-
-            kcal_counts = kcal_woche.groupby("Woche")["Kalorien_gegessen"].count()
-            kcal_weekly = (
-                kcal_woche.groupby("Woche")["Kalorien_gegessen"]
-                .mean().reset_index().round(0)
-            )
-            kcal_weekly = kcal_weekly[kcal_weekly["Woche"].isin(
-                kcal_counts[kcal_counts >= 3].index
-            )]
-
-            tdee_data = (
-                gewicht_weekly.merge(kcal_weekly, on="Woche", how="inner")
-                .sort_values("Woche").reset_index(drop=True)
-            )
-            tdee_data["Periode"] = tdee_data["Woche"].apply(lambda w: pd.Period(w, freq="W"))
-
-            paare = []
-            for i in range(1, len(tdee_data)):
-                diff = tdee_data.loc[i, "Periode"] - tdee_data.loc[i - 1, "Periode"]
-                diff_n = diff.n if hasattr(diff, "n") else int(diff)
-                if diff_n == 1:
-                    vor = tdee_data.iloc[i - 1]
-                    akt = tdee_data.iloc[i]
-                    delta_kg = akt["Gewicht_kg"] - vor["Gewicht_kg"]
-                    kcal_delta = (delta_kg * 7700) / 7
-                    tdee_est = akt["Kalorien_gegessen"] - kcal_delta
-                    paare.append({
-                        "Woche": f"{vor['Woche']} → {akt['Woche']}",
-                        "Δ Gewicht": delta_kg,
-                        "TDEE-Schätzung": tdee_est,
-                        "Gewicht_kg": akt["Gewicht_kg"],
-                    })
-
-            paare = paare[-4:]
-
-            if paare:
-                echter_tdee = float(np.mean([p["TDEE-Schätzung"] for p in paare]))
-                max_delta = max(abs(p["Δ Gewicht"]) for p in paare)
-                letztes_gewicht = paare[-1]["Gewicht_kg"]
-                gewicht_lbs_tdee = letztes_gewicht * 2.20462
+            if tdee_result:
+                echter_tdee = tdee_result["tdee"]
+                gewicht_lbs_tdee = gewicht * 2.20462
                 erhalt_faktor = echter_tdee / gewicht_lbs_tdee
-                diaet_faktor = erhalt_faktor - diaet_offset
+                diaet_faktor  = erhalt_faktor - diaet_offset
                 aufbau_faktor = erhalt_faktor + aufbau_offset
 
-                if max_delta > 1.0:
-                    st.warning(
-                        f":material/warning: Hohe Gewichtsschwankung ({max_delta:+.2f} kg) — "
-                        "Schätzung kann durch Wassereinlagerungen verfälscht sein."
-                    )
-                elif len(paare) == 1:
-                    st.info(":material/info: Nur ein Wochenpaar — mehr Daten erhöhen die Genauigkeit.")
-                else:
-                    st.success(f":material/check_circle: TDEE aus {len(paare)} Wochenpaaren gemittelt.")
+                konfidenz = (
+                    ":material/check_circle: Hoch" if tdee_result["r2"] >= 0.5
+                    else ":material/info: Mittel" if tdee_result["r2"] >= 0.2
+                    else ":material/warning: Niedrig"
+                )
+                st.caption(
+                    f"Lineare Regression · {tdee_result['n_tage']} Tage · "
+                    f"R² = {tdee_result['r2']} · Konfidenz: {konfidenz}"
+                )
 
                 e1, e2, e3, e4 = st.columns(4)
-                e1.metric("Echter TDEE (Ø)", f"{echter_tdee:.0f} kcal")
+                e1.metric("Echter TDEE", f"{echter_tdee} kcal")
                 e2.metric("Erhalt-Faktor", f"{erhalt_faktor:.2f}")
                 e3.metric("Diät-Faktor", f"{diaet_faktor:.2f}")
                 e4.metric("Aufbau-Faktor", f"{aufbau_faktor:.2f}")
-
-                with st.expander(":material/table_rows: Einzelne Wochenpaare", expanded=False):
-                    st.dataframe(
-                        pd.DataFrame(paare)[["Woche", "Δ Gewicht", "TDEE-Schätzung"]]
-                        .rename(columns={"Δ Gewicht": "Δ Gewicht (kg)", "TDEE-Schätzung": "TDEE (kcal)"})
-                        .round({"Δ Gewicht (kg)": 2, "TDEE (kcal)": 0}),
-                        use_container_width=True, hide_index=True
-                    )
 
                 if ziel == "Diät":
                     empfohlener_faktor = diaet_faktor
@@ -199,9 +141,8 @@ with tab_faktor:
                     speichere_einstellungen(gewicht, ziel, round(empfohlener_faktor, 2))
                     st.success(f"Empfohlener Faktor gespeichert: {empfohlener_faktor:.2f}")
                     st.rerun()
-
             else:
-                st.info("Keine zwei aufeinanderfolgenden vollständigen Wochen gefunden.")
+                st.info("Mindestens 7 Tage mit Gewicht + Kalorien nötig.")
         else:
             st.info("Noch nicht genug Gewicht- oder Kaloriendaten vorhanden.")
 

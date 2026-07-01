@@ -188,6 +188,53 @@ def speichere_einstellungen(
         json.dump(daten, f, indent=4)
 
 
+def berechne_tdee_regression(gewicht_df, kcal_df, tage=56):
+    """
+    Schätzt TDEE via linearer Regression auf Tagesgewicht + Kaloriendurchschnitt.
+    gewicht_df: DataFrame mit Spalten 'Datum', 'Gewicht_kg'
+    kcal_df:    DataFrame mit Spalten 'Datum', 'Kalorien_gegessen'
+    tage:       Betrachtungszeitraum in Tagen (Standard: 8 Wochen)
+    Gibt dict zurück: tdee, trend_kg_woche, r2, n_tage, avg_kcal
+    """
+    import numpy as np
+    from scipy import stats
+
+    heute = pd.Timestamp.today().normalize()
+    start = heute - pd.Timedelta(days=tage)
+
+    gw = gewicht_df[
+        (gewicht_df["Datum"].dt.normalize() >= start) &
+        (gewicht_df["Datum"].dt.normalize() < heute)
+    ].copy()
+    kw = kcal_df[
+        (kcal_df["Datum"].dt.normalize() >= start) &
+        (kcal_df["Datum"].dt.normalize() < heute) &
+        (kcal_df["Kalorien_gegessen"] > 0)
+    ].copy()
+
+    gw["Tag"] = (gw["Datum"].dt.normalize() - start).dt.days
+    merged = gw.merge(
+        kw[["Datum", "Kalorien_gegessen"]],
+        on="Datum", how="inner"
+    )
+
+    if len(merged) < 7:
+        return None
+
+    slope, _, r, _, _ = stats.linregress(merged["Tag"], merged["Gewicht_kg"])
+    trend_kg_tag = slope
+    avg_kcal = merged["Kalorien_gegessen"].mean()
+    tdee = avg_kcal - (trend_kg_tag * 7700)
+
+    return {
+        "tdee": round(tdee),
+        "trend_kg_woche": round(trend_kg_tag * 7, 3),
+        "r2": round(r ** 2, 2),
+        "n_tage": len(merged),
+        "avg_kcal": round(avg_kcal),
+    }
+
+
 def berechne_makros(gewicht_kg, faktor, kfa):
     gewicht_lbs = round(gewicht_kg * 2.20462, 2)
     kalorien = round(gewicht_lbs * faktor)
