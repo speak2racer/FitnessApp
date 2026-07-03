@@ -187,11 +187,16 @@ with tab_woche:
             weekly["Bilanz"] = weekly["Kalorien_gegessen"] - weekly["Gesamtverbrauch"]
 
             aktuell = weekly.iloc[-1]
+            vorwoche = weekly.iloc[-2] if len(weekly) >= 2 else None
             w1, w2, w3, w4 = st.columns(4)
-            w1.metric("Kalorien Ø", f"{aktuell['Kalorien_gegessen']:.0f} kcal")
-            w2.metric("Bilanz Ø", f"{aktuell['Bilanz']:+.0f} kcal")
-            w3.metric("Verbrauch Ø", f"{aktuell['Gesamtverbrauch']:.0f} kcal")
-            w4.metric("Schritte Ø", f"{aktuell['Schritte']:.0f}")
+            w1.metric("Kalorien Ø", f"{aktuell['Kalorien_gegessen']:.0f} kcal",
+                delta=f"{aktuell['Kalorien_gegessen'] - vorwoche['Kalorien_gegessen']:+.0f}" if vorwoche is not None else None)
+            w2.metric("Bilanz Ø", f"{aktuell['Bilanz']:+.0f} kcal",
+                delta=f"{aktuell['Bilanz'] - vorwoche['Bilanz']:+.0f}" if vorwoche is not None else None)
+            w3.metric("Verbrauch Ø", f"{aktuell['Gesamtverbrauch']:.0f} kcal",
+                delta=f"{aktuell['Gesamtverbrauch'] - vorwoche['Gesamtverbrauch']:+.0f}" if vorwoche is not None else None)
+            w4.metric("Schritte Ø", f"{aktuell['Schritte']:.0f}",
+                delta=f"{aktuell['Schritte'] - vorwoche['Schritte']:+.0f}" if vorwoche is not None else None)
         else:
             st.info("Noch nicht genug Daten vorhanden.")
 

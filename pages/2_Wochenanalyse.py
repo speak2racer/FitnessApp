@@ -430,3 +430,42 @@ with tab_charts:
                         bilanz_bar(bilanz_df, "Bilanz_Verbrauch", "Kalorienbilanz (Gegessen − Verbrauch)"),
                         use_container_width=True
                     )
+
+    # ── Schritte ─────────────────────────────────────────────────────────────
+    if not activity_logs.empty:
+        act_s = activity_logs[
+            (activity_logs["Datum"].dt.normalize() < heute_norm) &
+            (activity_logs["Schritte"] > 0)
+        ].copy()
+
+        if not act_s.empty:
+            st.markdown("### 🦶 Schritte")
+
+            act_s["Tag"] = act_s["Datum"].dt.normalize()
+            schritte_daily = act_s.groupby("Tag")["Schritte"].sum().reset_index().rename(columns={"Tag": "Datum"})
+
+            ZIEL_SCHRITTE = 10000
+
+            farben_s = ["#22c55e" if v >= ZIEL_SCHRITTE else "#3b82f6" for v in schritte_daily["Schritte"]]
+
+            fig_s = go.Figure()
+            fig_s.add_trace(go.Bar(
+                x=schritte_daily["Datum"],
+                y=schritte_daily["Schritte"],
+                marker_color=farben_s,
+                hovertemplate="%{x|%d.%m.%Y}<br><b>%{y:,.0f} Schritte</b><extra></extra>"
+            ))
+            fig_s.add_hline(
+                y=ZIEL_SCHRITTE, line_color="#22c55e", line_width=1.5,
+                line_dash="dash",
+                annotation_text="10.000 Ziel", annotation_position="top right",
+                annotation_font=dict(size=10, color="#22c55e")
+            )
+            fig_s.update_layout(
+                **LAYOUT_BASE,
+                title=dict(text="Schritte täglich", font=dict(size=15, color="#e5e7eb"), x=0.01),
+                showlegend=False,
+                xaxis=XAXIS_STYLE,
+                yaxis=dict(**YAXIS_STYLE, title="Schritte")
+            )
+            st.plotly_chart(fig_s, use_container_width=True)
