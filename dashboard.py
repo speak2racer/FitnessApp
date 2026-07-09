@@ -34,7 +34,8 @@ else:
 ziel = einstellungen["ziel"]
 faktor = float(einstellungen["faktor"])
 kfa = float(caliper["KFA"].iloc[-1]) if not caliper.empty else 15.0
-makros = berechne_makros(gewicht, faktor, kfa)
+wunschgewicht = float(einstellungen.get("wunschgewicht", gewicht))
+makros = berechne_makros(gewicht, faktor, kfa, wunschgewicht)
 heute = pd.Timestamp.today().normalize()
 
 nutrition_heute = (

@@ -54,7 +54,7 @@ with tab_faktor:
     with st.container(border=True):
         st.subheader(":material/settings: Einstellung")
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         with c1:
             ziel = st.selectbox(
                 "Ziel",
@@ -69,6 +69,15 @@ with tab_faktor:
                 max_value=25.0,
                 step=0.25,
                 key="faktor"
+            )
+        with c3:
+            wunschgewicht = st.number_input(
+                "Wunschgewicht (kg)",
+                min_value=40.0,
+                max_value=200.0,
+                value=float(einstellungen.get("wunschgewicht", gewicht)),
+                step=0.5,
+                help="Protein wird auf Basis dieses Gewichts berechnet (2 g/kg)"
             )
 
     gewicht_lbs = gewicht * 2.20462
@@ -148,11 +157,11 @@ with tab_faktor:
 
     if st.button(":material/save: Ziel speichern", use_container_width=True, key="save_faktor"):
         try:
-            speichere_einstellungen(gewicht, ziel, faktor)
+            speichere_einstellungen(gewicht, ziel, faktor, wunschgewicht=wunschgewicht)
 
             caliper = lade_caliper_daten()
             kfa = float(caliper["KFA"].iloc[-1]) if not caliper.empty else 15.0
-            makros = berechne_makros(gewicht, faktor, kfa)
+            makros = berechne_makros(gewicht, faktor, kfa, wunschgewicht)
 
             speichere_nutrition_target(
                 date.today().strftime("%Y-%m-%d"),

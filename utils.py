@@ -50,6 +50,7 @@ def zeige_refresh_button():
 def lade_einstellungen():
     standard = {
         "gewicht": 90.0,
+        "wunschgewicht": 85.0,
         "ziel": "Erhalt",
         "faktor": 15.0,
         "alter": 40,
@@ -163,6 +164,7 @@ def speichere_einstellungen(
     faktor,
     alter=None,
     groesse=None,
+    wunschgewicht=None,
     brust=None,
     bauch=None,
     oberschenkel=None
@@ -171,6 +173,7 @@ def speichere_einstellungen(
 
     daten = {
         "gewicht": gewicht,
+        "wunschgewicht": wunschgewicht if wunschgewicht is not None else alte.get("wunschgewicht", gewicht),
         "ziel": ziel,
         "faktor": faktor,
         "alter": alter if alter is not None else alte["alter"],
@@ -235,11 +238,12 @@ def berechne_tdee_regression(gewicht_df, kcal_df, tage=56):
     }
 
 
-def berechne_makros(gewicht_kg, faktor, kfa):
+def berechne_makros(gewicht_kg, faktor, kfa, wunschgewicht_kg=None):
     gewicht_lbs = round(gewicht_kg * 2.20462, 2)
     kalorien = round(gewicht_lbs * faktor)
 
-    eiweiss_g = round(gewicht_kg * 2)
+    protein_basis = wunschgewicht_kg if wunschgewicht_kg is not None else gewicht_kg
+    eiweiss_g = round(protein_basis * 2)
     eiweiss_kcal = eiweiss_g * 4
 
     fett_g = round(gewicht_kg * 0.7)
