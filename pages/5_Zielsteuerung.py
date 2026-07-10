@@ -71,11 +71,13 @@ with tab_faktor:
                 key="faktor"
             )
         with c3:
+            _wunsch_default = float(einstellungen.get("wunschgewicht") or gewicht)
+            _wunsch_default = max(40.0, min(200.0, _wunsch_default))
             wunschgewicht = st.number_input(
                 "Wunschgewicht (kg)",
                 min_value=40.0,
                 max_value=200.0,
-                value=float(einstellungen.get("wunschgewicht", gewicht)),
+                value=_wunsch_default,
                 step=0.5,
                 help="Protein wird auf Basis dieses Gewichts berechnet (2 g/kg)"
             )
