@@ -191,16 +191,12 @@ def speichere_einstellungen(
         json.dump(daten, f, indent=4)
 
 
-def berechne_tdee_regression(gewicht_df, kcal_df, tage=56, min_kcal=1200):
+def berechne_tdee_regression(gewicht_df, kcal_df, tage=56, min_kcal=1200, halbwertszeit=14):
     """
-    Schätzt TDEE via linearer Regression auf Tagesgewicht + Kaloriendurchschnitt.
-    gewicht_df: DataFrame mit Spalten 'Datum', 'Gewicht_kg'
-    kcal_df:    DataFrame mit Spalten 'Datum', 'Kalorien_gegessen'
-    tage:       Betrachtungszeitraum in Tagen
-    min_kcal:   Mindest-Kalorien pro Tag (unvollständige Tage herausfiltern)
-    Gibt dict zurück: tdee, trend_kg_woche, r2, n_tage, avg_kcal, n_gefiltert
+    Schätzt TDEE via exponentiell gewichteter linearer Regression.
+    Aktuellere Tage erhalten mehr Gewicht (Halbwertszeit in Tagen).
     """
-    from scipy import stats
+    import numpy as np
 
     heute = pd.Timestamp.today().normalize()
     start = heute - pd.Timedelta(days=tage)
@@ -224,14 +220,37 @@ def berechne_tdee_regression(gewicht_df, kcal_df, tage=56, min_kcal=1200):
     if len(merged) < 7:
         return None
 
-    slope, _, r, _, _ = stats.linregress(merged["Tag"], merged["Gewicht_kg"])
-    avg_kcal = merged["Kalorien_gegessen"].mean()
+    # Exponentielles Gewicht: neueste Tage = höchstes Gewicht
+    alter_tage = merged["Tag"].max() - merged["Tag"]
+    gewichte = np.exp(-np.log(2) / halbwertszeit * alter_tage)
+    w = gewichte.values
+    x = merged["Tag"].values.astype(float)
+    y_gew = merged["Gewicht_kg"].values
+    y_kcal = merged["Kalorien_gegessen"].values
+
+    # Gewichtete lineare Regression für Gewichtstrend
+    wx = np.sum(w * x)
+    wy = np.sum(w * y_gew)
+    wxx = np.sum(w * x * x)
+    wxy = np.sum(w * x * y_gew)
+    wtot = np.sum(w)
+    slope = (wtot * wxy - wx * wy) / (wtot * wxx - wx ** 2)
+
+    # Gewichteter Kaloriendurchschnitt
+    avg_kcal = np.sum(w * y_kcal) / wtot
+
     tdee = avg_kcal - (slope * 7700)
+
+    # R² (ungewichtet, als Orientierung)
+    y_pred = slope * x + (wy / wtot - slope * wx / wtot)
+    ss_res = np.sum((y_gew - y_pred) ** 2)
+    ss_tot = np.sum((y_gew - y_gew.mean()) ** 2)
+    r2 = max(0.0, 1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
 
     return {
         "tdee": round(tdee),
         "trend_kg_woche": round(slope * 7, 3),
-        "r2": round(r ** 2, 2),
+        "r2": round(r2, 2),
         "n_tage": len(merged),
         "avg_kcal": round(avg_kcal),
         "n_gefiltert": n_gefiltert,

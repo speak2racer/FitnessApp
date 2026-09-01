@@ -114,14 +114,25 @@ with tab_faktor:
             help="Wie viele Wochen für die Regression verwendet werden"
         )
 
-        min_kcal = st.number_input(
-            "Mindest-Kalorien pro Tag (unvollständige Tage filtern)",
+        f1, f2 = st.columns(2)
+        min_kcal = f1.number_input(
+            "Mindest-Kalorien pro Tag",
             min_value=500, max_value=3000, value=1500, step=100,
-            help="Tage mit weniger Kalorien werden als unvollständig geloggt ignoriert"
+            help="Tage unter diesem Wert werden als unvollständig ignoriert"
+        )
+        halbwertszeit = f2.select_slider(
+            "Gewichtung aktueller Daten (Halbwertszeit)",
+            options=[7, 14, 21, 28],
+            value=14,
+            format_func=lambda x: f"{x} Tage",
+            help="Kleinerer Wert = aktuellere Daten wichtiger, aber mehr Rauschen"
         )
 
         if not daten.empty and not nutrition_logs.empty:
-            tdee_result = berechne_tdee_regression(daten, nutrition_logs, tage=zeitfenster, min_kcal=min_kcal)
+            tdee_result = berechne_tdee_regression(
+                daten, nutrition_logs,
+                tage=zeitfenster, min_kcal=min_kcal, halbwertszeit=halbwertszeit
+            )
 
             if tdee_result:
                 echter_tdee = tdee_result["tdee"]
