@@ -191,15 +191,15 @@ def speichere_einstellungen(
         json.dump(daten, f, indent=4)
 
 
-def berechne_tdee_regression(gewicht_df, kcal_df, tage=56):
+def berechne_tdee_regression(gewicht_df, kcal_df, tage=56, min_kcal=1200):
     """
     Schätzt TDEE via linearer Regression auf Tagesgewicht + Kaloriendurchschnitt.
     gewicht_df: DataFrame mit Spalten 'Datum', 'Gewicht_kg'
     kcal_df:    DataFrame mit Spalten 'Datum', 'Kalorien_gegessen'
-    tage:       Betrachtungszeitraum in Tagen (Standard: 8 Wochen)
-    Gibt dict zurück: tdee, trend_kg_woche, r2, n_tage, avg_kcal
+    tage:       Betrachtungszeitraum in Tagen
+    min_kcal:   Mindest-Kalorien pro Tag (unvollständige Tage herausfiltern)
+    Gibt dict zurück: tdee, trend_kg_woche, r2, n_tage, avg_kcal, n_gefiltert
     """
-    import numpy as np
     from scipy import stats
 
     heute = pd.Timestamp.today().normalize()
@@ -216,25 +216,25 @@ def berechne_tdee_regression(gewicht_df, kcal_df, tage=56):
     ].copy()
 
     gw["Tag"] = (gw["Datum"].dt.normalize() - start).dt.days
-    merged = gw.merge(
-        kw[["Datum", "Kalorien_gegessen"]],
-        on="Datum", how="inner"
-    )
+    merged_all = gw.merge(kw[["Datum", "Kalorien_gegessen"]], on="Datum", how="inner")
+    n_gesamt = len(merged_all)
+    merged = merged_all[merged_all["Kalorien_gegessen"] >= min_kcal].copy()
+    n_gefiltert = n_gesamt - len(merged)
 
     if len(merged) < 7:
         return None
 
     slope, _, r, _, _ = stats.linregress(merged["Tag"], merged["Gewicht_kg"])
-    trend_kg_tag = slope
     avg_kcal = merged["Kalorien_gegessen"].mean()
-    tdee = avg_kcal - (trend_kg_tag * 7700)
+    tdee = avg_kcal - (slope * 7700)
 
     return {
         "tdee": round(tdee),
-        "trend_kg_woche": round(trend_kg_tag * 7, 3),
+        "trend_kg_woche": round(slope * 7, 3),
         "r2": round(r ** 2, 2),
         "n_tage": len(merged),
         "avg_kcal": round(avg_kcal),
+        "n_gefiltert": n_gefiltert,
     }
 
 

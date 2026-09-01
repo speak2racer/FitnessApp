@@ -97,20 +97,31 @@ with tab_faktor:
     with st.container(border=True):
         st.subheader(":material/insights: Empfehlung aus echtem TDEE")
 
-        off1, off2 = st.columns(2)
-        diaet_offset = off1.number_input(
+        cfg1, cfg2, cfg3 = st.columns(3)
+        diaet_offset = cfg1.number_input(
             "Diät-Offset (Faktor unter Erhalt)", min_value=0.5, max_value=5.0,
             value=2.0, step=0.25,
             help="Wie viele Faktor-Punkte unter dem Erhalt-Faktor für Diät"
         )
-        aufbau_offset = off2.number_input(
+        aufbau_offset = cfg2.number_input(
             "Aufbau-Offset (Faktor über Erhalt)", min_value=0.25, max_value=3.0,
             value=1.0, step=0.25,
             help="Wie viele Faktor-Punkte über dem Erhalt-Faktor für Aufbau"
         )
+        zeitfenster = cfg3.select_slider(
+            "Zeitfenster", options=[28, 42, 56], value=56,
+            format_func=lambda x: f"{x//7} Wochen",
+            help="Wie viele Wochen für die Regression verwendet werden"
+        )
+
+        min_kcal = st.number_input(
+            "Mindest-Kalorien pro Tag (unvollständige Tage filtern)",
+            min_value=500, max_value=3000, value=1500, step=100,
+            help="Tage mit weniger Kalorien werden als unvollständig geloggt ignoriert"
+        )
 
         if not daten.empty and not nutrition_logs.empty:
-            tdee_result = berechne_tdee_regression(daten, nutrition_logs)
+            tdee_result = berechne_tdee_regression(daten, nutrition_logs, tage=zeitfenster, min_kcal=min_kcal)
 
             if tdee_result:
                 echter_tdee = tdee_result["tdee"]
@@ -124,8 +135,9 @@ with tab_faktor:
                     else ":material/info: Mittel" if tdee_result["r2"] >= 0.2
                     else ":material/warning: Niedrig"
                 )
+                filter_hinweis = f" · {tdee_result['n_gefiltert']} Tage gefiltert" if tdee_result["n_gefiltert"] > 0 else ""
                 st.caption(
-                    f"Lineare Regression · {tdee_result['n_tage']} Tage · "
+                    f"Lineare Regression · {tdee_result['n_tage']} Tage genutzt{filter_hinweis} · "
                     f"R² = {tdee_result['r2']} · Konfidenz: {konfidenz}"
                 )
 
