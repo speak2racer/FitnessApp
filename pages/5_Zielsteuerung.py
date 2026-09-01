@@ -21,9 +21,10 @@ zeige_refresh_button()
 st.title(":material/track_changes: Zielsteuerung")
 st.caption("Passe Ziel, Faktor und TDEE-basierte Empfehlungen zentral an.")
 
-tab_faktor, tab_aragon = st.tabs([
+tab_faktor, tab_aragon, tab_lbs = st.tabs([
     ":material/calculate: Faktor-Methode",
     ":material/restaurant_menu: Aragon Flexible Dieting",
+    ":material/fitness_center: Leaner Bigger Stronger",
 ])
 
 einstellungen = lade_einstellungen()
@@ -342,3 +343,82 @@ with tab_aragon:
         except Exception as e:
             st.error(f"Fehler beim Speichern: {e}")
         st.rerun()
+
+
+# ── Tab 3: Leaner Bigger Stronger ────────────────────────────────────────────
+with tab_lbs:
+    st.markdown(
+        "Basiert auf **Leaner Bigger Stronger** — Kalorien aus dem echten TDEE, "
+        "Makros als feste Prozentverteilung je nach Ziel."
+    )
+
+    LBS_PROFILE = {
+        "Diät":   {"faktor": 0.75, "protein_pct": 0.40, "carbs_pct": 0.40, "fett_pct": 0.20},
+        "Erhalt": {"faktor": 1.00, "protein_pct": 0.30, "carbs_pct": 0.45, "fett_pct": 0.25},
+        "Aufbau": {"faktor": 1.10, "protein_pct": 0.25, "carbs_pct": 0.55, "fett_pct": 0.20},
+    }
+
+    with st.container(border=True):
+        st.subheader(":material/local_fire_department: TDEE-Basis")
+
+        if not daten.empty and not nutrition_logs.empty:
+            tdee_lbs = berechne_tdee_regression(daten, nutrition_logs)
+        else:
+            tdee_lbs = None
+
+        if tdee_lbs:
+            l1, l2, l3 = st.columns(3)
+            l1.metric("Echter TDEE", f"{tdee_lbs['tdee']} kcal")
+            l2.metric("Gewichtstrend", f"{tdee_lbs['trend_kg_woche']:+.2f} kg/Woche")
+            l3.metric("Datenpunkte", f"{tdee_lbs['n_tage']} Tage")
+            tdee_basis = tdee_lbs["tdee"]
+        else:
+            st.warning("Mindestens 7 Tage mit Gewicht + Kalorien nötig.")
+            tdee_basis = None
+
+    if tdee_basis:
+        with st.container(border=True):
+            st.subheader(":material/flag: Ziel & Makros")
+
+            ziel_lbs = st.selectbox("Ziel", ["Diät", "Erhalt", "Aufbau"], key="lbs_ziel")
+            profil = LBS_PROFILE[ziel_lbs]
+
+            kalorien_lbs = round(tdee_basis * profil["faktor"])
+            protein_lbs  = round(kalorien_lbs * profil["protein_pct"] / 4)
+            fett_lbs     = round(kalorien_lbs * profil["fett_pct"] / 9)
+            carbs_lbs    = round(kalorien_lbs * profil["carbs_pct"] / 4)
+
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Kalorien", f"{kalorien_lbs} kcal",
+                      help=f"TDEE × {profil['faktor']}")
+            m2.metric("Protein", f"{protein_lbs} g",
+                      help=f"{int(profil['protein_pct']*100)}% der Kalorien")
+            m3.metric("Fett", f"{fett_lbs} g",
+                      help=f"{int(profil['fett_pct']*100)}% der Kalorien")
+            m4.metric("Carbs", f"{carbs_lbs} g",
+                      help=f"{int(profil['carbs_pct']*100)}% der Kalorien")
+
+            st.caption(
+                f"Verteilung: Protein {int(profil['protein_pct']*100)}% · "
+                f"Fett {int(profil['fett_pct']*100)}% · "
+                f"Carbs {int(profil['carbs_pct']*100)}%"
+            )
+
+        if st.button(":material/save: LBS-Ziel übernehmen & speichern", use_container_width=True, key="save_lbs"):
+            try:
+                gewicht_lbs_val = gewicht * 2.20462
+                faktor_lbs = kalorien_lbs / gewicht_lbs_val if gewicht_lbs_val > 0 else 15.0
+                speichere_einstellungen(gewicht, ziel_lbs, round(faktor_lbs, 2))
+                speichere_nutrition_target(
+                    date.today().strftime("%Y-%m-%d"),
+                    kalorien_lbs, protein_lbs, fett_lbs, carbs_lbs,
+                    round(faktor_lbs, 2),
+                )
+                st.cache_data.clear()
+                st.success(
+                    f"LBS-Ziel gespeichert: {kalorien_lbs} kcal · "
+                    f"P {protein_lbs} g · F {fett_lbs} g · C {carbs_lbs} g"
+                )
+            except Exception as e:
+                st.error(f"Fehler beim Speichern: {e}")
+            st.rerun()
