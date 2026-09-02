@@ -187,7 +187,7 @@ with tab_faktor:
 
             caliper = lade_caliper_daten()
             kfa = float(caliper["KFA"].iloc[-1]) if not caliper.empty else 15.0
-            makros = berechne_makros(gewicht, faktor, kfa, wunschgewicht)
+            makros = berechne_makros(gewicht, faktor, kfa, wunschgewicht, ziel)
 
             speichere_nutrition_target(
                 date.today().strftime("%Y-%m-%d"),

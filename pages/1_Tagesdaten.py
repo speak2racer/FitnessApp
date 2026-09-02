@@ -34,7 +34,7 @@ kfa = float(caliper["KFA"].iloc[-1]) if not caliper.empty else 15.0
 ziel = einstellungen["ziel"]
 faktor = float(einstellungen["faktor"])
 wunschgewicht = float(einstellungen.get("wunschgewicht", gewicht_kg))
-makros = berechne_makros(gewicht_kg, faktor, kfa, wunschgewicht)
+makros = berechne_makros(gewicht_kg, faktor, kfa, wunschgewicht, ziel)
 
 with st.container(border=True):
     st.subheader(":material/info: Grundlage")

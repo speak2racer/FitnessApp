@@ -257,17 +257,27 @@ def berechne_tdee_regression(gewicht_df, kcal_df, tage=56, min_kcal=1200, halbwe
     }
 
 
-def berechne_makros(gewicht_kg, faktor, kfa, wunschgewicht_kg=None):
+def berechne_makros(gewicht_kg, faktor, kfa, wunschgewicht_kg=None, ziel="Erhalt"):
     gewicht_lbs = round(gewicht_kg * 2.20462, 2)
     kalorien = round(gewicht_lbs * faktor)
 
     protein_basis = wunschgewicht_kg if wunschgewicht_kg is not None else gewicht_kg
-    eiweiss_g = round(protein_basis * 2)
+    lbm = gewicht_kg * (1 - kfa / 100)
+
+    if ziel == "Diät":
+        # Höheres Protein auf LBM-Basis zum Muskelerhalt im Defizit
+        eiweiss_g = round(lbm * 2.3)
+        fett_g = round(kalorien * 0.25 / 9)
+    elif ziel == "Aufbau":
+        # Moderat Protein, mehr Carbs für Training
+        eiweiss_g = round(protein_basis * 1.8)
+        fett_g = round(kalorien * 0.20 / 9)
+    else:  # Erhalt
+        eiweiss_g = round(protein_basis * 2.0)
+        fett_g = round(kalorien * 0.25 / 9)
+
     eiweiss_kcal = eiweiss_g * 4
-
-    fett_g = round(gewicht_kg * 0.7)
     fett_kcal = fett_g * 9
-
     kohlenhydrate_kcal = max(0, kalorien - eiweiss_kcal - fett_kcal)
     kohlenhydrate_g = round(kohlenhydrate_kcal / 4)
 
